@@ -47,6 +47,7 @@ base reste uniquement dans `backend/.env`.
 - ligne TOTAL visuellement distincte ;
 - formatage réutilisable en `K€`, `M€` et `Bn€` avec valeur exacte en
   infobulle.
+- tableau implémenté avec AG Grid Community et thème Quartz personnalisé CACIB.
 
 Le test réel de PostgreSQL nécessite un `DATABASE_URL` valide dans
 `backend/.env`.

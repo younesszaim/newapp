@@ -1,55 +1,14 @@
-<div class="overflow-x-auto">
-  <table class="w-full min-w-[760px] border-collapse text-sm">
-    <thead>
-      <tr class="border-b border-slate-200 bg-slate-50/80 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-        <th class="px-6 py-3">Product Line</th>
-        <th class="px-6 py-3 text-right">0D</th>
-        <th class="px-6 py-3 text-right">30D</th>
-        <th class="px-6 py-3 text-right">LCR Réglementaire</th>
-        <th class="px-6 py-3 text-right">LCR Gestion</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (row of summary.rows; track row.productLine) {
-        <tr class="border-b border-slate-100 text-slate-700 last:border-b-0">
-          <td class="px-6 py-4 font-medium text-slate-900">{{ row.productLine }}</td>
-          <td class="px-6 py-4 text-right tabular-nums" [title]="preciseAmount(row.amount0d)">
-            {{ row.amount0d | compactEuro }}
-          </td>
-          <td class="px-6 py-4 text-right tabular-nums" [title]="preciseAmount(row.amount30d)">
-            {{ row.amount30d | compactEuro }}
-          </td>
-          <td class="px-6 py-4 text-right tabular-nums" [title]="preciseAmount(row.lcrReglementaire)">
-            {{ row.lcrReglementaire | compactEuro }}
-          </td>
-          <td class="px-6 py-4 text-right tabular-nums" [title]="preciseAmount(row.lcrGestion)">
-            {{ row.lcrGestion | compactEuro }}
-          </td>
-        </tr>
-      } @empty {
-        <tr>
-          <td colspan="5" class="px-6 py-10 text-center text-slate-500">
-            Aucune donnée LCR pour ce contexte.
-          </td>
-        </tr>
-      }
-    </tbody>
-    <tfoot>
-      <tr class="border-t-2 border-[#008C7A] bg-[#EAF6F3] font-semibold text-[#18324A]">
-        <td class="px-6 py-4">TOTAL</td>
-        <td class="px-6 py-4 text-right tabular-nums" [title]="preciseAmount(summary.total.amount0d)">
-          {{ summary.total.amount0d | compactEuro }}
-        </td>
-        <td class="px-6 py-4 text-right tabular-nums" [title]="preciseAmount(summary.total.amount30d)">
-          {{ summary.total.amount30d | compactEuro }}
-        </td>
-        <td class="px-6 py-4 text-right tabular-nums" [title]="preciseAmount(summary.total.lcrReglementaire)">
-          {{ summary.total.lcrReglementaire | compactEuro }}
-        </td>
-        <td class="px-6 py-4 text-right tabular-nums" [title]="preciseAmount(summary.total.lcrGestion)">
-          {{ summary.total.lcrGestion | compactEuro }}
-        </td>
-      </tr>
-    </tfoot>
-  </table>
-</div>
+<ag-grid-angular
+  class="block w-full"
+  domLayout="autoHeight"
+  [theme]="theme"
+  [rowData]="summary.rows"
+  [columnDefs]="columnDefs"
+  [defaultColDef]="defaultColDef"
+  [pinnedBottomRowData]="pinnedBottomRowData"
+  [getRowStyle]="getRowStyle"
+  [enableBrowserTooltips]="true"
+  [animateRows]="false"
+  [rowHeight]="48"
+  [headerHeight]="44"
+/>
