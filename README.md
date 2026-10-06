@@ -24,7 +24,7 @@ Supabase PostgreSQL
 Angular ne se connecte jamais directement à PostgreSQL. Le mot de passe de la
 base reste uniquement dans `backend/.env`.
 
-## État actuel : étape 13
+## État actuel : étape 14
 
 - frontend Angular standalone avec routing ;
 - Tailwind CSS configuré ;
@@ -66,6 +66,7 @@ base reste uniquement dans `backend/.env`.
 - endpoint transactionnel `DELETE /api/adjustments/{adjustment_id}` ;
 - suppression du trade et passage du registre à `DELETED` avec date et auteur ;
 - dialogue de confirmation dans le registre avant toute suppression.
+- tests backend isolés couvrant création, doublon, suppression et audit.
 
 Le test réel de PostgreSQL nécessite un `DATABASE_URL` valide dans
 `backend/.env`.
@@ -104,6 +105,16 @@ L'API est sur <http://localhost:8000> et Swagger sur
 - **Chargement différé** : `loadComponent` charge le code d'une page lorsqu'elle
   est visitée.
 
+## Lancer les tests
+
+```bash
+cd backend
+.venv/bin/python -m unittest discover -s tests -v
+
+cd ../frontend
+npm test -- --watch=false
+```
+
 ## Prochaine étape
 
-Ajouter les tests automatisés du cycle complet de création et de suppression.
+Ajouter des notifications de succès et d'erreur homogènes dans l'interface.

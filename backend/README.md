@@ -41,6 +41,19 @@ Réponse attendue :
 
 La documentation interactive est disponible sur <http://localhost:8000/docs>.
 
+## Tests automatisés
+
+Les tests métier utilisent des repositories simulés. Ils ne lisent ni ne
+modifient la base Supabase et peuvent donc être lancés sans `DATABASE_URL` :
+
+```bash
+cd backend
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Ils couvrent notamment la création, le refus d'un doublon actif, la suppression
+et la conservation de la trace d'audit.
+
 ## Premier flux PostgreSQL
 
 Lorsque Angular appellera `GET /api/asofdates`, le trajet sera :
