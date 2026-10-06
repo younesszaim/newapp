@@ -24,7 +24,7 @@ Supabase PostgreSQL
 Angular ne se connecte jamais directement à PostgreSQL. Le mot de passe de la
 base reste uniquement dans `backend/.env`.
 
-## État actuel : étape 6
+## État actuel : étape 8
 
 - frontend Angular standalone avec routing ;
 - Tailwind CSS configuré ;
@@ -49,6 +49,9 @@ base reste uniquement dans `backend/.env`.
 - formatage réutilisable en `K€`, `M€` et `Bn€` avec valeur exacte en
   infobulle.
 - tableau implémenté avec AG Grid Community et thème Quartz personnalisé CACIB.
+- formulaire Angular Reactive Forms pour les six montants d'ajustement ;
+- champs avancés repliables et initialisés à zéro ;
+- formulaire masqué lorsqu'un ajustement actif existe.
 
 Le test réel de PostgreSQL nécessite un `DATABASE_URL` valide dans
 `backend/.env`.
@@ -89,4 +92,5 @@ L'API est sur <http://localhost:8000> et Swagger sur
 
 ## Prochaine étape
 
-Créer le formulaire réactif d'ajustement sans encore enregistrer de données.
+Afficher l'aperçu de l'ajustement et les valeurs LCR projetées, sans écriture
+en base.

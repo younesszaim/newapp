@@ -49,4 +49,27 @@
     </div>
     <app-lcr-summary-table [summary]="loadedSummary" />
   </section>
+
+  @if (!loadedSummary.hasAdjustment) {
+    <section class="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 px-6 py-5">
+        <h2 class="text-base font-semibold text-slate-900">Créer l'ajustement</h2>
+        <p class="mt-1 text-sm text-slate-500">Saisissez les impacts en euros. Les valeurs négatives sont autorisées.</p>
+      </div>
+      <div class="px-6 py-6">
+        <app-adjustment-form (preview)="preparePreview($event)" />
+
+        @if (adjustmentDraft()) {
+          <div class="mt-5 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            Formulaire valide. Aucun enregistrement n'a été effectué ; l'aperçu détaillé sera ajouté à l'étape suivante.
+          </div>
+        }
+      </div>
+    </section>
+  } @else {
+    <section class="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-6 py-5">
+      <h2 class="font-semibold text-amber-900">Un ajustement existe déjà</h2>
+      <p class="mt-1 text-sm text-amber-700">La création est désactivée pour ce contexte.</p>
+    </section>
+  }
 }
