@@ -11,3 +11,12 @@ export interface AdjustmentRequest extends AdjustmentAmounts {
   asofdate: string;
   asofdateflowVersion: string;
 }
+
+export interface Adjustment extends AdjustmentRequest {
+  adjustmentId: string;
+  biId: string;
+  tradeNo: number;
+  createdAt: string;
+  createdBy: string;
+  status: 'ACTIVE' | 'DELETED';
+}

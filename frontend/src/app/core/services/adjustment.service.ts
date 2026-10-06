@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { LcrSummary } from '../models/lcr-summary.model';
+import { Adjustment, AdjustmentRequest } from '../models/adjustment.model';
 
 @Injectable({ providedIn: 'root' })
 export class AdjustmentService {
@@ -27,5 +28,9 @@ export class AdjustmentService {
     return this.http.get<LcrSummary>(`${this.apiUrl}/lcr-summary`, {
       params: { asofdate, version }
     });
+  }
+
+  createAdjustment(request: AdjustmentRequest): Observable<Adjustment> {
+    return this.http.post<Adjustment>(`${this.apiUrl}/adjustments`, request);
   }
 }

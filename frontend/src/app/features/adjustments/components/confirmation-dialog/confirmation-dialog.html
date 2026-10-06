@@ -1,0 +1,66 @@
+<div class="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4" role="presentation">
+  <section
+    class="w-full max-w-lg rounded-xl border border-slate-200 bg-white shadow-2xl"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="confirmation-title"
+  >
+    <div class="border-b border-slate-100 px-6 py-5">
+      <h2 id="confirmation-title" class="text-lg font-semibold text-slate-950">Confirmer l'ajustement</h2>
+      <p class="mt-1 text-sm text-slate-500">Cette action enregistrera un trade fictif dans la table LCR.</p>
+    </div>
+
+    <div class="space-y-5 px-6 py-5">
+      <dl class="grid grid-cols-2 gap-4 rounded-lg bg-slate-50 p-4 text-sm">
+        <div>
+          <dt class="text-xs text-slate-500">Date d'arrêté</dt>
+          <dd class="mt-1 font-medium text-slate-900">{{ request.asofdate }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-slate-500">Version</dt>
+          <dd class="mt-1 font-medium text-slate-900">{{ request.asofdateflowVersion.replace('T', ' ') }}</dd>
+        </div>
+      </dl>
+
+      <dl class="space-y-3 text-sm">
+        <div class="flex items-center justify-between gap-4">
+          <dt class="text-slate-500">Ajustement LCR réglementaire</dt>
+          <dd class="font-semibold text-[#00675B]">{{ formatAmount(request.ldpImpactLcrReglementaire) }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-4">
+          <dt class="text-slate-500">Ajustement LCR gestion</dt>
+          <dd class="font-semibold text-[#00675B]">{{ formatAmount(request.ldpImpactLcrGestion) }}</dd>
+        </div>
+      </dl>
+
+      <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Un seul ajustement actif est autorisé pour ce contexte.
+      </div>
+
+      @if (error) {
+        <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {{ error }}
+        </div>
+      }
+    </div>
+
+    <div class="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+      <button
+        type="button"
+        class="h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+        [disabled]="saving"
+        (click)="cancelled.emit()"
+      >
+        Annuler
+      </button>
+      <button
+        type="button"
+        class="h-10 rounded-md bg-[#008C7A] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#00675B] disabled:cursor-not-allowed disabled:opacity-60"
+        [disabled]="saving"
+        (click)="confirmed.emit()"
+      >
+        {{ saving ? 'Enregistrement...' : 'Confirmer et enregistrer' }}
+      </button>
+    </div>
+  </section>
+</div>

@@ -1,17 +1,19 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 
 import { AdjustmentService } from '../../../../core/services/adjustment.service';
 import { LcrSummary } from '../../../../core/models/lcr-summary.model';
-import { AdjustmentAmounts } from '../../../../core/models/adjustment.model';
+import { AdjustmentAmounts, AdjustmentRequest } from '../../../../core/models/adjustment.model';
 import { ContextSelector } from '../../components/context-selector/context-selector';
 import { LcrSummaryTable } from '../../components/lcr-summary-table/lcr-summary-table';
 import { AdjustmentForm } from '../../components/adjustment-form/adjustment-form';
 import { AdjustmentPreview } from '../../components/adjustment-preview/adjustment-preview';
+import { ConfirmationDialog } from '../../components/confirmation-dialog/confirmation-dialog';
 
 @Component({
   selector: 'app-create-adjustment',
   standalone: true,
-  imports: [ContextSelector, LcrSummaryTable, AdjustmentForm, AdjustmentPreview],
+  imports: [ContextSelector, LcrSummaryTable, AdjustmentForm, AdjustmentPreview, ConfirmationDialog],
   templateUrl: './create-adjustment.html'
 })
 export class CreateAdjustment implements OnInit {
@@ -27,6 +29,9 @@ export class CreateAdjustment implements OnInit {
   readonly summary = signal<LcrSummary | null>(null);
   readonly adjustmentDraft = signal<AdjustmentAmounts | null>(null);
   readonly confirmationRequested = signal(false);
+  readonly savingAdjustment = signal(false);
+  readonly creationError = signal<string | null>(null);
+  readonly creationSuccess = signal(false);
   readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
@@ -58,6 +63,8 @@ export class CreateAdjustment implements OnInit {
     this.summary.set(null);
     this.adjustmentDraft.set(null);
     this.confirmationRequested.set(false);
+    this.creationError.set(null);
+    this.creationSuccess.set(false);
     this.error.set(null);
 
     if (asofdate) {
@@ -85,6 +92,8 @@ export class CreateAdjustment implements OnInit {
     this.summary.set(null);
     this.adjustmentDraft.set(null);
     this.confirmationRequested.set(false);
+    this.creationError.set(null);
+    this.creationSuccess.set(false);
     this.error.set(null);
 
     const asofdate = this.selectedAsofdate();
@@ -120,5 +129,51 @@ export class CreateAdjustment implements OnInit {
 
   requestConfirmation(): void {
     this.confirmationRequested.set(true);
+    this.creationError.set(null);
+  }
+
+  closeConfirmation(): void {
+    this.confirmationRequested.set(false);
+    this.creationError.set(null);
+  }
+
+  adjustmentRequest(): AdjustmentRequest | null {
+    const asofdate = this.selectedAsofdate();
+    const version = this.selectedVersion();
+    const amounts = this.adjustmentDraft();
+
+    if (!asofdate || !version || !amounts) {
+      return null;
+    }
+
+    return { asofdate, asofdateflowVersion: version, ...amounts };
+  }
+
+  confirmAdjustment(): void {
+    const request = this.adjustmentRequest();
+    if (!request) {
+      return;
+    }
+
+    this.savingAdjustment.set(true);
+    this.creationError.set(null);
+
+    this.adjustmentService.createAdjustment(request).subscribe({
+      next: () => {
+        this.savingAdjustment.set(false);
+        this.confirmationRequested.set(false);
+        this.adjustmentDraft.set(null);
+        this.creationSuccess.set(true);
+        this.loadSummary(request.asofdate, request.asofdateflowVersion);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.savingAdjustment.set(false);
+        this.creationError.set(
+          error.status === 409
+            ? 'Un ajustement existe déjà pour cette date et cette version.'
+            : "Impossible d'enregistrer l'ajustement."
+        );
+      }
+    });
   }
 }
