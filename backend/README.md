@@ -11,6 +11,8 @@ Ce dossier contient l'API de **LCR Adjustment**.
 - `app/routers/context_router.py` reçoit les requêtes HTTP de contexte.
 - `app/repositories/lcr_repository.py` contient le SQL lisible exécuté sur
   `public.completude_table`.
+- `sql/create_adjustment_registry.sql` crée le registre et ses index de manière
+  idempotente : le script peut être rejoué sans recréer la table.
 - `.env.example` documente les variables attendues sans contenir de secret.
 - `requirements.txt` liste les bibliothèques Python.
 
@@ -72,6 +74,36 @@ WHERE asofdate = 2026-10-05
 
 Dans le code SQL, la date est transmise avec `%s`. Ce paramétrage empêche
 l'injection SQL et laisse psycopg2 convertir correctement la date Python.
+
+## Résumé LCR
+
+```text
+GET /api/lcr-summary?asofdate=2026-10-05&version=2026-10-06T15:30:00
+        ↓
+lcr_router.get_lcr_summary()
+        ↓
+lcr_service.build_lcr_summary()
+        ↓
+lcr_repository.get_lcr_summary_rows()
+        ↓
+GROUP BY product_line dans PostgreSQL
+```
+
+Le repository récupère les agrégats. Le service calcule ensuite la ligne
+`total` et recherche l'ajustement actif dans `adjustment_registry`. Le router
+renvoie finalement le contrat JSON validé par les schémas Pydantic de
+`app/schemas/lcr.py`.
+
+Exemple abrégé :
+
+```json
+{
+  "rows": [{ "productLine": "LOAN", "amount0d": 45000 }],
+  "total": { "amount0d": 57000 },
+  "hasAdjustment": false,
+  "adjustment": null
+}
+```
 
 ## Pourquoi CORS ?
 

@@ -1,6 +1,7 @@
 """Requêtes de lecture de la table public.completude_table."""
 
 from datetime import date, datetime
+from typing import Any
 
 from psycopg2.extensions import connection as PostgreSQLConnection
 
@@ -55,3 +56,64 @@ def get_versions(
         rows = cursor.fetchall()
 
     return [row["asofdateflow_version"] for row in rows]
+
+
+def get_lcr_summary_rows(
+    connection: PostgreSQLConnection,
+    asofdate: date,
+    version: datetime,
+) -> list[dict[str, Any]]:
+    """Agrège toutes les lignes du contexte avec un seul GROUP BY."""
+
+    query = """
+        SELECT
+            COALESCE(product_line, 'NON RENSEIGNÉ') AS product_line,
+            COALESCE(SUM(eur_amount_od), 0) AS amount_0d,
+            COALESCE(SUM(eur_amount_30d), 0) AS amount_30d,
+            COALESCE(SUM(ldp_impact_lcr_reglementaire), 0)
+                AS lcr_reglementaire,
+            COALESCE(SUM(ldp_impact_lcr_gestion), 0)
+                AS lcr_gestion
+        FROM public.completude_table
+        WHERE asofdate = %s
+          AND asofdateflow_version = %s
+        GROUP BY product_line
+        ORDER BY product_line
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(query, (asofdate, version))
+        rows = cursor.fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def get_active_adjustment(
+    connection: PostgreSQLConnection,
+    asofdate: date,
+    version: datetime,
+) -> dict[str, Any] | None:
+    """Retourne l'ajustement ACTIVE du registre et ses deux impacts principaux."""
+
+    query = """
+        SELECT
+            registry.adjustment_id,
+            registry.bi_id,
+            trade.ldp_impact_lcr_reglementaire,
+            trade.ldp_impact_lcr_gestion,
+            registry.created_at,
+            registry.created_by
+        FROM public.adjustment_registry AS registry
+        JOIN public.completude_table AS trade
+          ON trade.bi_id = registry.bi_id
+        WHERE registry.asofdate = %s
+          AND registry.asofdateflow_version = %s
+          AND registry.status = 'ACTIVE'
+        LIMIT 1
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(query, (asofdate, version))
+        row = cursor.fetchone()
+
+    return dict(row) if row else None
