@@ -6,11 +6,12 @@ import { AdjustmentAmounts } from '../../../../core/models/adjustment.model';
 import { ContextSelector } from '../../components/context-selector/context-selector';
 import { LcrSummaryTable } from '../../components/lcr-summary-table/lcr-summary-table';
 import { AdjustmentForm } from '../../components/adjustment-form/adjustment-form';
+import { AdjustmentPreview } from '../../components/adjustment-preview/adjustment-preview';
 
 @Component({
   selector: 'app-create-adjustment',
   standalone: true,
-  imports: [ContextSelector, LcrSummaryTable, AdjustmentForm],
+  imports: [ContextSelector, LcrSummaryTable, AdjustmentForm, AdjustmentPreview],
   templateUrl: './create-adjustment.html'
 })
 export class CreateAdjustment implements OnInit {
@@ -25,6 +26,7 @@ export class CreateAdjustment implements OnInit {
   readonly loadingSummary = signal(false);
   readonly summary = signal<LcrSummary | null>(null);
   readonly adjustmentDraft = signal<AdjustmentAmounts | null>(null);
+  readonly confirmationRequested = signal(false);
   readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
@@ -55,6 +57,7 @@ export class CreateAdjustment implements OnInit {
     this.versions.set([]);
     this.summary.set(null);
     this.adjustmentDraft.set(null);
+    this.confirmationRequested.set(false);
     this.error.set(null);
 
     if (asofdate) {
@@ -81,6 +84,7 @@ export class CreateAdjustment implements OnInit {
     this.selectedVersion.set(version || null);
     this.summary.set(null);
     this.adjustmentDraft.set(null);
+    this.confirmationRequested.set(false);
     this.error.set(null);
 
     const asofdate = this.selectedAsofdate();
@@ -106,5 +110,15 @@ export class CreateAdjustment implements OnInit {
 
   preparePreview(amounts: AdjustmentAmounts): void {
     this.adjustmentDraft.set(amounts);
+    this.confirmationRequested.set(false);
+  }
+
+  cancelPreview(): void {
+    this.adjustmentDraft.set(null);
+    this.confirmationRequested.set(false);
+  }
+
+  requestConfirmation(): void {
+    this.confirmationRequested.set(true);
   }
 }
