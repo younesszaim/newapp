@@ -7,6 +7,7 @@ import { LcrSummaryTable } from '../../components/lcr-summary-table/lcr-summary-
 
 @Component({
   selector: 'app-create-adjustment',
+  standalone: true,
   imports: [ContextSelector, LcrSummaryTable],
   templateUrl: './create-adjustment.html'
 })

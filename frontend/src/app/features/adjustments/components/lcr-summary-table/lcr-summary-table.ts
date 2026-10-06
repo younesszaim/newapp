@@ -17,6 +17,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
   selector: 'app-lcr-summary-table',
+  standalone: true,
   imports: [AgGridAngular],
   templateUrl: './lcr-summary-table.html'
 })

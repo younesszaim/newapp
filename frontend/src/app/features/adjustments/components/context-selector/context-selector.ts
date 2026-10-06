@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 @Component({
   selector: 'app-context-selector',
+  standalone: true,
   templateUrl: './context-selector.html'
 })
 export class ContextSelector {
