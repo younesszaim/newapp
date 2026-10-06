@@ -4,7 +4,6 @@ import {
   AllCommunityModule,
   ColDef,
   ModuleRegistry,
-  RowClassParams,
   themeQuartz,
   ValueFormatterParams
 } from 'ag-grid-community';
@@ -18,7 +17,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 @Component({
   selector: 'app-lcr-summary-table',
   standalone: true,
-  imports: [AgGridAngular],
+  imports: [AgGridAngular, CompactEuroPipe],
   templateUrl: './lcr-summary-table.html'
 })
 export class LcrSummaryTable {
@@ -58,20 +57,6 @@ export class LcrSummaryTable {
     this.moneyColumn('lcrReglementaire', 'LCR Réglementaire'),
     this.moneyColumn('lcrGestion', 'LCR Gestion')
   ];
-
-  get pinnedBottomRowData(): LcrSummaryRow[] {
-    return [{ productLine: 'TOTAL', ...this.summary.total }];
-  }
-
-  readonly getRowStyle = (params: RowClassParams<LcrSummaryRow>) =>
-    params.node.rowPinned
-      ? {
-          backgroundColor: '#EAF6F3',
-          color: '#18324A',
-          fontWeight: '700',
-          borderTop: '2px solid #008C7A'
-        }
-      : undefined;
 
   private moneyColumn(
     field: keyof Omit<LcrSummaryRow, 'productLine'>,

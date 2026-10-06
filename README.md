@@ -44,7 +44,7 @@ base reste uniquement dans `backend/.env`.
 - agrégation SQL unique avec `GROUP BY product_line` ;
 - total et détection d'un ajustement actif.
 - tableau Angular de la situation LCR par Product Line ;
-- ligne TOTAL visuellement distincte ;
+- totaux affichés dans un bandeau sous la grille, sans ligne de données TOTAL ;
 - formatage réutilisable en `K€`, `M€` et `Bn€` avec valeur exacte en
   infobulle.
 - tableau implémenté avec AG Grid Community et thème Quartz personnalisé CACIB.
