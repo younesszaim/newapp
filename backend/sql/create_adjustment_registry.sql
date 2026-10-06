@@ -23,3 +23,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_adjustment_registry_active_context
 
 CREATE INDEX IF NOT EXISTS ix_adjustment_registry_context
     ON public.adjustment_registry (asofdate, asofdateflow_version);
+
+-- Snapshot minimal conservé même lorsque le trade est ensuite supprimé.
+ALTER TABLE public.adjustment_registry
+    ADD COLUMN IF NOT EXISTS tradeno BIGINT,
+    ADD COLUMN IF NOT EXISTS ldp_impact_lcr_reglementaire NUMERIC(20,2),
+    ADD COLUMN IF NOT EXISTS ldp_impact_lcr_gestion NUMERIC(20,2),
+    ADD COLUMN IF NOT EXISTS impact_lcr_inflow NUMERIC(20,2) DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS impact_lcr_outflow NUMERIC(20,2) DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS impact_lcr_asset NUMERIC(20,2) DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS impact_lcr_asset_cash NUMERIC(20,2) DEFAULT 0;

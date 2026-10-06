@@ -13,8 +13,9 @@ from app.repositories.adjustment_repository import (
     insert_adjustment_trade,
     insert_registry_entry,
     trade_no_exists,
+    list_adjustments,
 )
-from app.schemas.adjustment import AdjustmentRequest, AdjustmentResponse
+from app.schemas.adjustment import AdjustmentListItem, AdjustmentRequest, AdjustmentResponse
 
 CREATED_BY = "local_user"
 MAX_BIGINT = 9_000_000_000_000_000_000
@@ -69,6 +70,13 @@ def create_adjustment(
             asofdate=request.asofdate,
             version=request.asofdateflow_version,
             created_by=CREATED_BY,
+            trade_no=trade_no,
+            lcr_reglementaire=request.ldp_impact_lcr_reglementaire,
+            lcr_gestion=request.ldp_impact_lcr_gestion,
+            impact_inflow=request.impact_lcr_inflow,
+            impact_outflow=request.impact_lcr_outflow,
+            impact_asset=request.impact_lcr_asset,
+            impact_asset_cash=request.impact_lcr_asset_cash,
         )
     except errors.UniqueViolation as error:
         # L'index unique partiel protège aussi contre deux requêtes concurrentes.
@@ -93,3 +101,9 @@ def create_adjustment(
         created_by=registry["created_by"],
         status=registry["status"],
     )
+
+
+def get_adjustments(connection: PostgreSQLConnection) -> list[AdjustmentListItem]:
+    """Convertit les lignes SQL du registre en contrats API."""
+
+    return [AdjustmentListItem(**row) for row in list_adjustments(connection)]

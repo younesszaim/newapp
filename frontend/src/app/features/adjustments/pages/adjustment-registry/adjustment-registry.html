@@ -3,15 +3,97 @@
   <p class="mt-1.5 text-sm text-slate-500">Consultez les ajustements actifs et supprimés.</p>
 </header>
 
-<section class="mt-7 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-  <div class="border-b border-slate-100 px-6 py-5">
-    <h2 class="text-base font-semibold text-slate-900">Historique</h2>
+<section class="mt-7 rounded-xl border border-slate-200 bg-white shadow-sm">
+  <div class="grid gap-4 border-b border-slate-100 px-6 py-5 md:grid-cols-2">
+    <label>
+      <span class="mb-2 block text-sm font-medium text-slate-700">Date d'arrêté</span>
+      <select class="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm shadow-sm outline-none focus:border-[#008C7A] focus:ring-2 focus:ring-[#008C7A]/15" (change)="selectAsofdate($event)">
+        <option value="">Toutes les dates</option>
+        @for (asofdate of asofdates(); track asofdate) {
+          <option [value]="asofdate">{{ asofdate }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span class="mb-2 block text-sm font-medium text-slate-700">Version</span>
+      <select class="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm shadow-sm outline-none focus:border-[#008C7A] focus:ring-2 focus:ring-[#008C7A]/15" (change)="selectVersion($event)">
+        <option value="">Toutes les versions</option>
+        @for (version of versions(); track version) {
+          <option [value]="version">{{ version.replace('T', ' ') }}</option>
+        }
+      </select>
+    </label>
   </div>
-  <div class="px-6 py-12 text-center">
-    <div class="mx-auto grid size-11 place-items-center rounded-full bg-[#EAF6F3] text-[#007B69]">
-      <span class="text-lg">≡</span>
+
+  @if (loading()) {
+    <p class="px-6 py-12 text-center text-sm text-slate-500">Chargement du registre...</p>
+  } @else if (error()) {
+    <div class="m-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error() }}</div>
+  } @else {
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[1050px] text-sm">
+        <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-5 py-3">Date d'arrêté</th>
+            <th class="px-5 py-3">Version</th>
+            <th class="px-5 py-3 text-right">Réglementaire</th>
+            <th class="px-5 py-3 text-right">Gestion</th>
+            <th class="px-5 py-3">Créé le</th>
+            <th class="px-5 py-3">Créé par</th>
+            <th class="px-5 py-3">Statut</th>
+            <th class="px-5 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          @for (item of filteredAdjustments(); track item.adjustmentId) {
+            <tr class="text-slate-700 hover:bg-slate-50">
+              <td class="px-5 py-4 font-medium text-slate-900">{{ item.asofdate }}</td>
+              <td class="px-5 py-4">{{ item.asofdateflowVersion.replace('T', ' ') }}</td>
+              <td class="px-5 py-4 text-right tabular-nums">
+                {{ item.ldpImpactLcrReglementaire === null ? '—' : (item.ldpImpactLcrReglementaire | compactEuro) }}
+              </td>
+              <td class="px-5 py-4 text-right tabular-nums">
+                {{ item.ldpImpactLcrGestion === null ? '—' : (item.ldpImpactLcrGestion | compactEuro) }}
+              </td>
+              <td class="px-5 py-4">{{ formatDateTime(item.createdAt) }}</td>
+              <td class="px-5 py-4">{{ item.createdBy }}</td>
+              <td class="px-5 py-4">
+                <span class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                  [class]="item.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'">
+                  {{ item.status === 'ACTIVE' ? 'Actif' : 'Supprimé' }}
+                </span>
+              </td>
+              <td class="px-5 py-4 text-right">
+                <button type="button" class="text-sm font-semibold text-[#007B69] hover:text-[#005E51]" (click)="viewedAdjustment.set(item)">
+                  Voir
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="px-6 py-12 text-center text-slate-500">Aucun ajustement ne correspond aux filtres.</td></tr>
+          }
+        </tbody>
+      </table>
     </div>
-    <h3 class="mt-4 text-sm font-semibold text-slate-900">Aucun ajustement chargé</h3>
-    <p class="mt-1 text-sm text-slate-500">Le registre sera relié à l’API dans une prochaine étape.</p>
-  </div>
+  }
 </section>
+
+@if (viewedAdjustment(); as item) {
+  <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h2 class="font-semibold text-slate-950">Détail de l'ajustement</h2>
+        <p class="mt-1 font-mono text-xs text-slate-500">{{ item.adjustmentId }}</p>
+      </div>
+      <button type="button" class="text-sm font-medium text-slate-500 hover:text-slate-900" (click)="viewedAdjustment.set(null)">Fermer</button>
+    </div>
+    <dl class="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+      <div><dt class="text-xs text-slate-500">BI ID</dt><dd class="mt-1 break-all font-medium">{{ item.biId }}</dd></div>
+      <div><dt class="text-xs text-slate-500">TradeNo</dt><dd class="mt-1 font-medium">{{ item.tradeNo ?? '—' }}</dd></div>
+      <div><dt class="text-xs text-slate-500">Inflow</dt><dd class="mt-1 font-medium">{{ item.impactLcrInflow === null ? '—' : (item.impactLcrInflow | compactEuro) }}</dd></div>
+      <div><dt class="text-xs text-slate-500">Outflow</dt><dd class="mt-1 font-medium">{{ item.impactLcrOutflow === null ? '—' : (item.impactLcrOutflow | compactEuro) }}</dd></div>
+      <div><dt class="text-xs text-slate-500">Asset</dt><dd class="mt-1 font-medium">{{ item.impactLcrAsset === null ? '—' : (item.impactLcrAsset | compactEuro) }}</dd></div>
+      <div><dt class="text-xs text-slate-500">Asset Cash</dt><dd class="mt-1 font-medium">{{ item.impactLcrAssetCash === null ? '—' : (item.impactLcrAssetCash | compactEuro) }}</dd></div>
+    </dl>
+  </section>
+}

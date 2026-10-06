@@ -3,10 +3,17 @@
 from fastapi import APIRouter, status
 
 from app.routers.context_router import DatabaseConnection
-from app.schemas.adjustment import AdjustmentRequest, AdjustmentResponse
-from app.services.adjustment_service import create_adjustment
+from app.schemas.adjustment import AdjustmentListItem, AdjustmentRequest, AdjustmentResponse
+from app.services.adjustment_service import create_adjustment, get_adjustments
 
 router = APIRouter(prefix="/adjustments", tags=["Ajustements"])
+
+
+@router.get("", response_model=list[AdjustmentListItem], response_model_by_alias=True)
+def list_manual_adjustments(connection: DatabaseConnection) -> list[AdjustmentListItem]:
+    """Retourne les ajustements actifs et supprimés du registre."""
+
+    return get_adjustments(connection)
 
 
 @router.post(
