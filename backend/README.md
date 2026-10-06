@@ -2,10 +2,15 @@
 
 Ce dossier contient l'API de **LCR Adjustment**.
 
-## Rôle des fichiers de l'étape 1
+## Rôle des fichiers
 
 - `app/main.py` crée FastAPI, configure CORS et expose `/api/health`.
 - `app/config.py` lit la configuration depuis l'environnement et `.env`.
+- `app/database.py` charge `DATABASE_URL`, puis ouvre et ferme une connexion
+  psycopg2 par requête.
+- `app/routers/context_router.py` reçoit les requêtes HTTP de contexte.
+- `app/repositories/lcr_repository.py` contient le SQL lisible exécuté sur
+  `public.completude_table`.
 - `.env.example` documente les variables attendues sans contenir de secret.
 - `requirements.txt` liste les bibliothèques Python.
 
@@ -33,6 +38,25 @@ Réponse attendue :
 ```
 
 La documentation interactive est disponible sur <http://localhost:8000/docs>.
+
+## Premier flux PostgreSQL
+
+Lorsque Angular appellera `GET /api/asofdates`, le trajet sera :
+
+```text
+GET /api/asofdates
+        ↓
+context_router.list_asofdates()
+        ↓
+lcr_repository.get_asofdates()
+        ↓
+SELECT DISTINCT asofdate FROM public.completude_table
+        ↓
+["2026-10-05", "2026-10-04"]
+```
+
+FastAPI convertit automatiquement les objets Python `date` en chaînes JSON au
+format ISO `YYYY-MM-DD`.
 
 ## Pourquoi CORS ?
 

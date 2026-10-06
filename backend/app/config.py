@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     """Valeurs configurables sans les inscrire dans le code source.
 
     Exemple : DATABASE_URL est lue depuis backend/.env pendant le développement.
-    Elle reste optionnelle à l'étape 1 afin que l'API puisse démarrer avant la
-    mise en place de la connexion PostgreSQL.
+    Elle reste optionnelle au démarrage afin que l'API de santé puisse répondre,
+    mais les routes qui interrogent PostgreSQL exigent sa présence.
     """
 
     app_name: str = "LCR Adjustment API"

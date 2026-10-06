@@ -24,7 +24,7 @@ Supabase PostgreSQL
 Angular ne se connecte jamais directement à PostgreSQL. Le mot de passe de la
 base reste uniquement dans `backend/.env`.
 
-## État actuel : étape 1
+## État actuel : étape 2
 
 - frontend Angular standalone avec routing ;
 - Tailwind CSS configuré ;
@@ -32,9 +32,12 @@ base reste uniquement dans `backend/.env`.
 - backend FastAPI avec CORS ;
 - configuration par variables d'environnement ;
 - endpoint de contrôle `GET /api/health`.
+- connexion PostgreSQL avec psycopg2 ;
+- SQL explicite dans un repository ;
+- endpoint `GET /api/asofdates`.
 
-La connexion réelle à PostgreSQL et `GET /api/asofdates` appartiennent à
-l'étape 2.
+Le test réel de PostgreSQL nécessite un `DATABASE_URL` valide dans
+`backend/.env`.
 
 ## Lancer Angular
 
@@ -72,5 +75,5 @@ L'API est sur <http://localhost:8000> et Swagger sur
 
 ## Prochaine étape
 
-Configurer la connexion psycopg à `public.completude_table`, inspecter son
-schéma réel, puis implémenter et tester `GET /api/asofdates`.
+Implémenter `GET /api/asofdates/{asofdate}/versions`, puis connecter le
+sélecteur Angular aux deux endpoints.
