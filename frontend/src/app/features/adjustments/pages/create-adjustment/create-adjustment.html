@@ -8,10 +8,29 @@
     <h2 class="text-base font-semibold text-slate-900">Contexte de reporting</h2>
     <p class="mt-1 text-sm text-slate-500">Sélectionnez la date d'arrêté et la version à ajuster.</p>
   </div>
-  <div class="px-6 py-8">
-    <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
-      <p class="text-sm font-medium text-slate-700">Connexion aux données à venir</p>
-      <p class="mt-1 text-sm text-slate-500">Les listes seront alimentées par PostgreSQL à l’étape suivante.</p>
-    </div>
+  <div class="px-6 py-6">
+    <app-context-selector
+      [asofdates]="asofdates()"
+      [versions]="versions()"
+      [selectedAsofdate]="selectedAsofdate()"
+      [selectedVersion]="selectedVersion()"
+      [loadingDates]="loadingDates()"
+      [loadingVersions]="loadingVersions()"
+      (asofdateChange)="selectAsofdate($event)"
+      (versionChange)="selectVersion($event)"
+    />
+
+    @if (error()) {
+      <div class="mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ error() }}
+      </div>
+    }
+
+    @if (selectedVersion()) {
+      <div class="mt-5 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <span class="size-2 rounded-full bg-emerald-500"></span>
+        Contexte sélectionné. La situation LCR pourra maintenant être chargée.
+      </div>
+    }
   </div>
 </section>
