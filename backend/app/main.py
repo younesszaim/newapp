@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.routers.context_router import router as context_router
 from app.routers.lcr_router import router as lcr_router
+from app.routers.adjustment_router import router as adjustment_router
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
@@ -24,6 +25,7 @@ app.add_middleware(
 # garantit que toutes les URLs publiques commencent par /api.
 app.include_router(context_router, prefix=settings.api_prefix)
 app.include_router(lcr_router, prefix=settings.api_prefix)
+app.include_router(adjustment_router, prefix=settings.api_prefix)
 
 
 @app.get(f"{settings.api_prefix}/health", tags=["Système"])

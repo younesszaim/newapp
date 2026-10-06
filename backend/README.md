@@ -105,6 +105,30 @@ Exemple abrégé :
 }
 ```
 
+## Création transactionnelle
+
+`POST /api/adjustments` reçoit uniquement le contexte et les six montants.
+Les champs techniques sont appliqués par `ADJUSTMENT_DEFAULTS` dans
+`app/config.py`.
+
+```text
+POST /api/adjustments
+        ↓
+vérification de l'unicité ACTIVE
+        ↓
+génération adjustment_id, bi_id et TradeNo
+        ↓
+INSERT public.completude_table
+        ↓ même connexion / même transaction
+INSERT public.adjustment_registry
+        ↓
+COMMIT automatique à la fin de la requête
+```
+
+Si une insertion échoue, le context manager psycopg2 de `database.py` annule
+la transaction. L'index unique du registre protège aussi les requêtes
+concurrentes et l'API renvoie `409 Conflict` lorsqu'un ajustement actif existe.
+
 ## Pourquoi CORS ?
 
 Angular tourne sur le port `4200` et FastAPI sur le port `8000`. Pour un

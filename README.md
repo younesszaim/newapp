@@ -24,7 +24,7 @@ Supabase PostgreSQL
 Angular ne se connecte jamais directement à PostgreSQL. Le mot de passe de la
 base reste uniquement dans `backend/.env`.
 
-## État actuel : étape 9
+## État actuel : étape 10
 
 - frontend Angular standalone avec routing ;
 - Tailwind CSS configuré ;
@@ -54,6 +54,9 @@ base reste uniquement dans `backend/.env`.
 - formulaire masqué lorsqu'un ajustement actif existe.
 - aperçu sans écriture avec contexte, valeurs techniques et impacts ;
 - comparaison des LCR actuels et projetés.
+- endpoint transactionnel `POST /api/adjustments` ;
+- insertion atomique dans `completude_table` et `adjustment_registry` ;
+- règle d'unicité backend avec réponse `409 Conflict`.
 
 Le test réel de PostgreSQL nécessite un `DATABASE_URL` valide dans
 `backend/.env`.
@@ -94,4 +97,4 @@ L'API est sur <http://localhost:8000> et Swagger sur
 
 ## Prochaine étape
 
-Implémenter `POST /api/adjustments` avec une transaction PostgreSQL.
+Ajouter la confirmation finale Angular et recharger le résumé après création.
