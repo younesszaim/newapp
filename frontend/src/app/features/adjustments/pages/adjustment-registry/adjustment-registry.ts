@@ -19,6 +19,9 @@ export class AdjustmentRegistry implements OnInit {
   readonly selectedAsofdate = signal('');
   readonly selectedVersion = signal('');
   readonly viewedAdjustment = signal<AdjustmentRegistryItem | null>(null);
+  readonly adjustmentToDelete = signal<AdjustmentRegistryItem | null>(null);
+  readonly deleting = signal(false);
+  readonly deleteError = signal<string | null>(null);
 
   readonly asofdates = computed(() =>
     [...new Set(this.adjustments().map((item) => item.asofdate))].sort().reverse()
@@ -76,5 +79,41 @@ export class AdjustmentRegistry implements OnInit {
       dateStyle: 'medium',
       timeStyle: 'short'
     }).format(new Date(value));
+  }
+
+  askForDeletion(item: AdjustmentRegistryItem): void {
+    this.deleteError.set(null);
+    this.adjustmentToDelete.set(item);
+  }
+
+  cancelDeletion(): void {
+    if (!this.deleting()) {
+      this.adjustmentToDelete.set(null);
+      this.deleteError.set(null);
+    }
+  }
+
+  confirmDeletion(): void {
+    const item = this.adjustmentToDelete();
+    if (!item || this.deleting()) {
+      return;
+    }
+
+    this.deleting.set(true);
+    this.deleteError.set(null);
+    this.adjustmentService.deleteAdjustment(item.adjustmentId).subscribe({
+      next: () => {
+        if (this.viewedAdjustment()?.adjustmentId === item.adjustmentId) {
+          this.viewedAdjustment.set(null);
+        }
+        this.adjustmentToDelete.set(null);
+        this.deleting.set(false);
+        this.loadAdjustments();
+      },
+      error: () => {
+        this.deleteError.set("Impossible de supprimer l'ajustement.");
+        this.deleting.set(false);
+      }
+    });
   }
 }

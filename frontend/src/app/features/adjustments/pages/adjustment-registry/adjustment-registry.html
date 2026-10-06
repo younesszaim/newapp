@@ -67,6 +67,11 @@
                 <button type="button" class="text-sm font-semibold text-[#007B69] hover:text-[#005E51]" (click)="viewedAdjustment.set(item)">
                   Voir
                 </button>
+                @if (item.status === 'ACTIVE') {
+                  <button type="button" class="ml-4 text-sm font-semibold text-red-600 hover:text-red-800" (click)="askForDeletion(item)">
+                    Supprimer
+                  </button>
+                }
               </td>
             </tr>
           } @empty {
@@ -96,4 +101,30 @@
       <div><dt class="text-xs text-slate-500">Asset Cash</dt><dd class="mt-1 font-medium">{{ item.impactLcrAssetCash === null ? '—' : (item.impactLcrAssetCash | compactEuro) }}</dd></div>
     </dl>
   </section>
+}
+
+@if (adjustmentToDelete(); as item) {
+  <div class="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+    <section class="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+      <h2 id="delete-title" class="text-lg font-semibold text-slate-950">Supprimer cet ajustement ?</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-600">
+        Le trade de la date <strong>{{ item.asofdate }}</strong> et de la version
+        <strong>{{ item.asofdateflowVersion.replace('T', ' ') }}</strong> sera supprimé.
+        Sa trace restera disponible dans le registre avec le statut « Supprimé ».
+      </p>
+
+      @if (deleteError()) {
+        <p class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ deleteError() }}</p>
+      }
+
+      <div class="mt-6 flex justify-end gap-3">
+        <button type="button" class="h-10 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" [disabled]="deleting()" (click)="cancelDeletion()">
+          Annuler
+        </button>
+        <button type="button" class="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-wait disabled:opacity-60" [disabled]="deleting()" (click)="confirmDeletion()">
+          {{ deleting() ? 'Suppression...' : 'Confirmer la suppression' }}
+        </button>
+      </div>
+    </section>
+  </div>
 }

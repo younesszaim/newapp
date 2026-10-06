@@ -1,7 +1,7 @@
 """Règles métier de création d'un ajustement."""
 
 import secrets
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from psycopg2 import errors
@@ -10,10 +10,13 @@ from psycopg2.extensions import connection as PostgreSQLConnection
 from app.config import ADJUSTMENT_DEFAULTS
 from app.repositories.adjustment_repository import (
     adjustment_exists,
+    delete_adjustment_trade,
+    get_registry_entry_for_update,
     insert_adjustment_trade,
     insert_registry_entry,
-    trade_no_exists,
     list_adjustments,
+    mark_registry_entry_deleted,
+    trade_no_exists,
 )
 from app.schemas.adjustment import AdjustmentListItem, AdjustmentRequest, AdjustmentResponse
 
@@ -107,3 +110,21 @@ def get_adjustments(connection: PostgreSQLConnection) -> list[AdjustmentListItem
     """Convertit les lignes SQL du registre en contrats API."""
 
     return [AdjustmentListItem(**row) for row in list_adjustments(connection)]
+
+
+def delete_adjustment(connection: PostgreSQLConnection, adjustment_id: UUID) -> None:
+    """Supprime le trade et garde sa trace d'audit dans la même transaction."""
+
+    registry = get_registry_entry_for_update(connection, adjustment_id)
+    if registry is None:
+        raise HTTPException(status_code=404, detail="Ajustement introuvable.")
+    if registry["status"] == "DELETED":
+        raise HTTPException(status_code=409, detail="Cet ajustement est déjà supprimé.")
+
+    if not delete_adjustment_trade(connection, registry["bi_id"]):
+        raise HTTPException(
+            status_code=409,
+            detail="Le trade associé à cet ajustement est introuvable.",
+        )
+
+    mark_registry_entry_deleted(connection, adjustment_id, CREATED_BY)

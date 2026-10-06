@@ -41,4 +41,10 @@ export class AdjustmentService {
   getAdjustments(): Observable<AdjustmentRegistryItem[]> {
     return this.http.get<AdjustmentRegistryItem[]>(`${this.apiUrl}/adjustments`);
   }
+
+  deleteAdjustment(adjustmentId: string): Observable<void> {
+    return this.http.delete<void>(
+      `${this.apiUrl}/adjustments/${encodeURIComponent(adjustmentId)}`
+    );
+  }
 }

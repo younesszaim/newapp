@@ -204,3 +204,50 @@ def list_adjustments(connection: PostgreSQLConnection) -> list[dict[str, Any]]:
     with connection.cursor() as cursor:
         cursor.execute(query)
         return [dict(row) for row in cursor.fetchall()]
+
+
+def get_registry_entry_for_update(
+    connection: PostgreSQLConnection,
+    adjustment_id: UUID,
+) -> dict[str, Any] | None:
+    """Verrouille l'ajustement pendant sa suppression transactionnelle."""
+
+    query = """
+        SELECT adjustment_id, bi_id, status
+        FROM public.adjustment_registry
+        WHERE adjustment_id = %s
+        FOR UPDATE
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(query, (str(adjustment_id),))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def delete_adjustment_trade(connection: PostgreSQLConnection, bi_id: str) -> bool:
+    """Supprime uniquement la ligne de trade liée à l'ajustement."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM public.completude_table WHERE bi_id = %s",
+            (bi_id,),
+        )
+        return cursor.rowcount == 1
+
+
+def mark_registry_entry_deleted(
+    connection: PostgreSQLConnection,
+    adjustment_id: UUID,
+    deleted_by: str,
+) -> None:
+    """Conserve l'audit après la suppression physique du trade."""
+
+    query = """
+        UPDATE public.adjustment_registry
+        SET status = 'DELETED',
+            deleted_at = CURRENT_TIMESTAMP,
+            deleted_by = %s
+        WHERE adjustment_id = %s
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(query, (deleted_by, str(adjustment_id)))
