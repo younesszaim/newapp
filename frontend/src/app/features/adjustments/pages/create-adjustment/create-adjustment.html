@@ -26,11 +26,27 @@
       </div>
     }
 
-    @if (selectedVersion()) {
+    @if (summary()) {
       <div class="mt-5 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
         <span class="size-2 rounded-full bg-emerald-500"></span>
-        Contexte sélectionné. La situation LCR pourra maintenant être chargée.
+        Contexte sélectionné et situation LCR chargée.
       </div>
     }
   </div>
 </section>
+
+@if (loadingSummary()) {
+  <section class="mt-6 rounded-xl border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
+    <p class="text-sm text-slate-500">Chargement de la situation LCR...</p>
+  </section>
+}
+
+@if (summary(); as loadedSummary) {
+  <section class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-6 py-5">
+      <h2 class="text-base font-semibold text-slate-900">Situation LCR actuelle</h2>
+      <p class="mt-1 text-sm text-slate-500">Agrégation par Product Line issue de PostgreSQL.</p>
+    </div>
+    <app-lcr-summary-table [summary]="loadedSummary" />
+  </section>
+}

@@ -1,11 +1,13 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 
 import { AdjustmentService } from '../../../../core/services/adjustment.service';
+import { LcrSummary } from '../../../../core/models/lcr-summary.model';
 import { ContextSelector } from '../../components/context-selector/context-selector';
+import { LcrSummaryTable } from '../../components/lcr-summary-table/lcr-summary-table';
 
 @Component({
   selector: 'app-create-adjustment',
-  imports: [ContextSelector],
+  imports: [ContextSelector, LcrSummaryTable],
   templateUrl: './create-adjustment.html'
 })
 export class CreateAdjustment implements OnInit {
@@ -17,6 +19,8 @@ export class CreateAdjustment implements OnInit {
   readonly selectedVersion = signal<string | null>(null);
   readonly loadingDates = signal(false);
   readonly loadingVersions = signal(false);
+  readonly loadingSummary = signal(false);
+  readonly summary = signal<LcrSummary | null>(null);
   readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
@@ -45,6 +49,7 @@ export class CreateAdjustment implements OnInit {
     this.selectedAsofdate.set(asofdate || null);
     this.selectedVersion.set(null);
     this.versions.set([]);
+    this.summary.set(null);
     this.error.set(null);
 
     if (asofdate) {
@@ -69,5 +74,27 @@ export class CreateAdjustment implements OnInit {
 
   selectVersion(version: string): void {
     this.selectedVersion.set(version || null);
+    this.summary.set(null);
+    this.error.set(null);
+
+    const asofdate = this.selectedAsofdate();
+    if (asofdate && version) {
+      this.loadSummary(asofdate, version);
+    }
+  }
+
+  loadSummary(asofdate: string, version: string): void {
+    this.loadingSummary.set(true);
+
+    this.adjustmentService.getLcrSummary(asofdate, version).subscribe({
+      next: (summary) => {
+        this.summary.set(summary);
+        this.loadingSummary.set(false);
+      },
+      error: () => {
+        this.error.set('Impossible de charger la situation LCR.');
+        this.loadingSummary.set(false);
+      }
+    });
   }
 }

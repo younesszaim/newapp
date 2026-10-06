@@ -24,7 +24,7 @@ Supabase PostgreSQL
 Angular ne se connecte jamais directement à PostgreSQL. Le mot de passe de la
 base reste uniquement dans `backend/.env`.
 
-## État actuel : étape 5
+## État actuel : étape 6
 
 - frontend Angular standalone avec routing ;
 - Tailwind CSS configuré ;
@@ -43,6 +43,10 @@ base reste uniquement dans `backend/.env`.
 - endpoint `GET /api/lcr-summary` ;
 - agrégation SQL unique avec `GROUP BY product_line` ;
 - total et détection d'un ajustement actif.
+- tableau Angular de la situation LCR par Product Line ;
+- ligne TOTAL visuellement distincte ;
+- formatage réutilisable en `K€`, `M€` et `Bn€` avec valeur exacte en
+  infobulle.
 
 Le test réel de PostgreSQL nécessite un `DATABASE_URL` valide dans
 `backend/.env`.
@@ -83,4 +87,4 @@ L'API est sur <http://localhost:8000> et Swagger sur
 
 ## Prochaine étape
 
-Afficher le résumé LCR et sa ligne TOTAL dans Angular.
+Créer le formulaire réactif d'ajustement sans encore enregistrer de données.

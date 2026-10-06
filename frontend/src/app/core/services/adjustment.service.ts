@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { LcrSummary } from '../models/lcr-summary.model';
 
 @Injectable({ providedIn: 'root' })
 export class AdjustmentService {
@@ -20,5 +21,11 @@ export class AdjustmentService {
     return this.http.get<string[]>(
       `${this.apiUrl}/asofdates/${encodeURIComponent(asofdate)}/versions`
     );
+  }
+
+  getLcrSummary(asofdate: string, version: string): Observable<LcrSummary> {
+    return this.http.get<LcrSummary>(`${this.apiUrl}/lcr-summary`, {
+      params: { asofdate, version }
+    });
   }
 }
