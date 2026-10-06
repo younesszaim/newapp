@@ -58,6 +58,21 @@ SELECT DISTINCT asofdate FROM public.completude_table
 FastAPI convertit automatiquement les objets Python `date` en chaînes JSON au
 format ISO `YYYY-MM-DD`.
 
+La liste des versions utilise la date sélectionnée :
+
+```text
+GET /api/asofdates/2026-10-05/versions
+        ↓
+SELECT DISTINCT asofdateflow_version
+FROM public.completude_table
+WHERE asofdate = 2026-10-05
+        ↓
+["2026-10-06T11:45:00"]
+```
+
+Dans le code SQL, la date est transmise avec `%s`. Ce paramétrage empêche
+l'injection SQL et laisse psycopg2 convertir correctement la date Python.
+
 ## Pourquoi CORS ?
 
 Angular tourne sur le port `4200` et FastAPI sur le port `8000`. Pour un
