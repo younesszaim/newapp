@@ -1,0 +1,18 @@
+# Secrets locaux
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+backend/.venv/
+.pytest_cache/
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Système et éditeurs
+.DS_Store
+.idea/
