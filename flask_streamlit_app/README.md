@@ -78,4 +78,11 @@ la sélection d'une date.
 `product_line`. Streamlit affiche les quatre totaux dans des cartes, puis les
 lignes dans un tableau interactif.
 
-La prochaine étape ajoutera la grille de saisie multi-lignes des ajustements.
+## Étape 5 — saisie multi-lignes
+
+Streamlit utilise `st.data_editor` pour ajouter ou supprimer des lignes. Les
+colonnes LCR réglementaire et LCR gestion sont obligatoires ; les quatre autres
+valent zéro lorsqu'elles sont vides. `POST /api/adjustments` enregistre le lot
+dans une seule transaction et crée un seul `adjustment_id` dans le registre.
+
+La prochaine étape construira la page du registre et la suppression groupée.

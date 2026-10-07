@@ -2,6 +2,7 @@
 
 import os
 
+import pandas as pd
 import requests
 import streamlit as st
 from dotenv import load_dotenv
@@ -56,6 +57,22 @@ def format_euro(value: float) -> str:
     if absolute_value >= 1_000:
         return f"{value / 1_000:.2f} K€"
     return f"{value:.2f} €"
+
+
+def save_adjustments(asofdate: str, version: str, rows: list[dict]) -> dict:
+    """Envoie toutes les lignes à Flask dans une seule requête."""
+
+    response = requests.post(
+        f"{API_URL}/api/adjustments",
+        json={
+            "asofdate": asofdate,
+            "asofdateflowVersion": version,
+            "adjustments": rows,
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
 
 st.set_page_config(page_title="LCR Adjustments", page_icon="🏦", layout="wide")
 
@@ -116,5 +133,57 @@ try:
                 hide_index=True,
                 use_container_width=True,
             )
+
+            st.subheader("Nouvel ajustement")
+            st.caption("* Colonnes obligatoires · les cellules optionnelles vides valent 0 €")
+            initial_rows = pd.DataFrame([
+                {
+                    "ldpImpactLcrReglementaire": None,
+                    "ldpImpactLcrGestion": None,
+                    "impactLcrInflow": 0.0,
+                    "impactLcrOutflow": 0.0,
+                    "impactLcrAsset": 0.0,
+                    "impactLcrAssetCash": 0.0,
+                }
+            ])
+            with st.form("adjustment_form"):
+                edited_rows = st.data_editor(
+                    initial_rows,
+                    num_rows="dynamic",
+                    hide_index=True,
+                    use_container_width=True,
+                    column_config={
+                        "ldpImpactLcrReglementaire": st.column_config.NumberColumn(
+                            "LCR réglementaire *", required=True, format="%.2f €"
+                        ),
+                        "ldpImpactLcrGestion": st.column_config.NumberColumn(
+                            "LCR gestion *", required=True, format="%.2f €"
+                        ),
+                        "impactLcrInflow": st.column_config.NumberColumn("Inflow · Optionnel", format="%.2f €"),
+                        "impactLcrOutflow": st.column_config.NumberColumn("Outflow · Optionnel", format="%.2f €"),
+                        "impactLcrAsset": st.column_config.NumberColumn("Asset · Optionnel", format="%.2f €"),
+                        "impactLcrAssetCash": st.column_config.NumberColumn("Asset Cash · Optionnel", format="%.2f €"),
+                    },
+                )
+                confirmed = st.checkbox("Je confirme l'enregistrement de toutes ces lignes")
+                submitted = st.form_submit_button("Enregistrer l'ajustement", type="primary")
+
+            if submitted:
+                if not confirmed:
+                    st.error("Confirmez l'enregistrement avant de continuer.")
+                elif len(edited_rows) > 100:
+                    st.error("Un ajustement ne peut pas dépasser 100 lignes.")
+                else:
+                    try:
+                        rows = edited_rows.where(pd.notna(edited_rows), None).to_dict("records")
+                        result = save_adjustments(selected_asofdate, selected_version, rows)
+                        load_lcr_summary.clear()
+                        st.success(
+                            f"Ajustement {result['adjustmentId']} enregistré "
+                            f"avec {result['lineCount']} ligne(s)."
+                        )
+                    except requests.HTTPError as error:
+                        message = error.response.json().get("error", "Requête invalide.")
+                        st.error(message)
 except requests.RequestException:
     st.error("Impossible de charger le contexte LCR depuis PostgreSQL.")
