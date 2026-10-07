@@ -31,6 +31,32 @@ def load_versions(asofdate: str) -> list[str]:
     response.raise_for_status()
     return response.json()
 
+
+@st.cache_data(ttl=30)
+def load_lcr_summary(asofdate: str, version: str) -> dict:
+    """Charge les agrégats LCR du contexte complet."""
+
+    response = requests.get(
+        f"{API_URL}/api/lcr-summary",
+        params={"asofdate": asofdate, "version": version},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def format_euro(value: float) -> str:
+    """Affiche un montant compact dans les cartes KPI."""
+
+    absolute_value = abs(value)
+    if absolute_value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f} Bn€"
+    if absolute_value >= 1_000_000:
+        return f"{value / 1_000_000:.2f} M€"
+    if absolute_value >= 1_000:
+        return f"{value / 1_000:.2f} K€"
+    return f"{value:.2f} €"
+
 st.set_page_config(page_title="LCR Adjustments", page_icon="🏦", layout="wide")
 
 st.title("LCR Adjustments")
@@ -65,8 +91,30 @@ try:
             placeholder="Sélectionnez une version",
         )
         if selected_version:
-            st.success(
-                f"Contexte sélectionné : {selected_asofdate} · {selected_version}"
+            summary = load_lcr_summary(selected_asofdate, selected_version)
+            st.subheader("Résumé LCR")
+            total = summary["total"]
+            columns = st.columns(4)
+            columns[0].metric("Montant 0D", format_euro(total["amount0d"]))
+            columns[1].metric("Montant 30D", format_euro(total["amount30d"]))
+            columns[2].metric("LCR réglementaire", format_euro(total["lcrReglementaire"]))
+            columns[3].metric("LCR gestion", format_euro(total["lcrGestion"]))
+
+            st.dataframe(
+                summary["rows"],
+                column_order=(
+                    "productLine", "amount0d", "amount30d",
+                    "lcrReglementaire", "lcrGestion",
+                ),
+                column_config={
+                    "productLine": "Product Line",
+                    "amount0d": st.column_config.NumberColumn("Montant 0D", format="%.2f €"),
+                    "amount30d": st.column_config.NumberColumn("Montant 30D", format="%.2f €"),
+                    "lcrReglementaire": st.column_config.NumberColumn("LCR réglementaire", format="%.2f €"),
+                    "lcrGestion": st.column_config.NumberColumn("LCR gestion", format="%.2f €"),
+                },
+                hide_index=True,
+                use_container_width=True,
             )
 except requests.RequestException:
     st.error("Impossible de charger le contexte LCR depuis PostgreSQL.")

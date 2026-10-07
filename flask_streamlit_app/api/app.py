@@ -8,6 +8,7 @@ from flask import Flask, jsonify
 from flasgger import Swagger
 
 from api.context_routes import context_blueprint
+from api.lcr_routes import lcr_blueprint
 
 
 def create_app() -> Flask:
@@ -29,6 +30,7 @@ def create_app() -> Flask:
         },
     )
     app.register_blueprint(context_blueprint)
+    app.register_blueprint(lcr_blueprint)
 
     @app.get("/api/health")
     def health() -> tuple[dict[str, str], int]:

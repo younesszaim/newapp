@@ -72,4 +72,10 @@ Une fois Flask redémarré :
 la date choisie. Streamlit affiche automatiquement le second sélecteur après
 la sélection d'une date.
 
-La prochaine étape construira le résumé LCR du contexte sélectionné.
+## Étape 4 — résumé LCR
+
+`GET /api/lcr-summary?asofdate=...&version=...` agrège les données par
+`product_line`. Streamlit affiche les quatre totaux dans des cartes, puis les
+lignes dans un tableau interactif.
+
+La prochaine étape ajoutera la grille de saisie multi-lignes des ajustements.
