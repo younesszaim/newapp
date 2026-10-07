@@ -34,6 +34,15 @@ streamlit run streamlit_app.py
 Ouvrez ensuite `http://localhost:8501`. L'écran doit afficher
 « API Flask connectée ».
 
+La documentation Swagger de l'API est accessible à l'adresse :
+
+```text
+http://127.0.0.1:5000/apidocs
+```
+
+Vous pouvez y ouvrir `GET /api/health`, cliquer sur **Try it out**, puis sur
+**Execute** pour tester l'endpoint sans utiliser `curl`.
+
 ## Structure
 
 ```text
