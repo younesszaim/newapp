@@ -19,6 +19,18 @@ def load_asofdates() -> list[str]:
     response.raise_for_status()
     return response.json()
 
+
+@st.cache_data(ttl=30)
+def load_versions(asofdate: str) -> list[str]:
+    """Charge uniquement les versions de la date sélectionnée."""
+
+    response = requests.get(
+        f"{API_URL}/api/asofdates/{asofdate}/versions",
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json()
+
 st.set_page_config(page_title="LCR Adjustments", page_icon="🏦", layout="wide")
 
 st.title("LCR Adjustments")
@@ -45,6 +57,16 @@ try:
         placeholder="Sélectionnez une date",
     )
     if selected_asofdate:
-        st.info(f"Date sélectionnée : {selected_asofdate}")
+        versions = load_versions(selected_asofdate)
+        selected_version = st.selectbox(
+            "Version",
+            options=versions,
+            index=None,
+            placeholder="Sélectionnez une version",
+        )
+        if selected_version:
+            st.success(
+                f"Contexte sélectionné : {selected_asofdate} · {selected_version}"
+            )
 except requests.RequestException:
-    st.error("Impossible de charger les dates d'arrêté depuis PostgreSQL.")
+    st.error("Impossible de charger le contexte LCR depuis PostgreSQL.")

@@ -66,4 +66,10 @@ Une fois Flask redémarré :
 - Swagger permet de tester le endpoint depuis `/apidocs` ;
 - Streamlit affiche ces dates dans le sélecteur « Date d'arrêté ».
 
-La prochaine étape ajoutera les versions disponibles pour la date sélectionnée.
+## Étape 3 — versions dépendantes de la date
+
+`GET /api/asofdates/{asofdate}/versions` retourne les versions PostgreSQL de
+la date choisie. Streamlit affiche automatiquement le second sélecteur après
+la sélection d'une date.
+
+La prochaine étape construira le résumé LCR du contexte sélectionné.
