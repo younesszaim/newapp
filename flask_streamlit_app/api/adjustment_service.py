@@ -116,6 +116,7 @@ def _serialize_block(block: dict) -> dict:
         "status": block["status"],
         "deletedAt": block["deleted_at"].isoformat() if block["deleted_at"] else None,
         "deletedBy": block["deleted_by"],
+        "lastEventAt": (block["deleted_at"] or block["created_at"]).isoformat(),
         "lines": [
             {
                 "biId": line["bi_id"],

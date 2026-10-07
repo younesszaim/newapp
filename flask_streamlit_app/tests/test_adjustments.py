@@ -104,6 +104,7 @@ class AdjustmentTest(TestCase):
 
         self.assertEqual(result[0]["adjustmentId"], str(adjustment_id))
         self.assertEqual(result[0]["lines"][0]["tradeNo"], 123)
+        self.assertEqual(result[0]["lastEventAt"], "2026-10-08T09:00:00")
 
     @patch("api.adjustment_service.mark_registry_block_deleted")
     @patch("api.adjustment_service.delete_adjustment_trades", return_value=2)

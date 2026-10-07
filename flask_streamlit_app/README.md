@@ -94,3 +94,10 @@ lignes du bloc et conserve uniquement le statut `DELETED`, la date et l'auteur.
 
 La prochaine étape appliquera le thème visuel CACIB et finalisera l'expérience
 utilisateur.
+
+### Visualisation du registre
+
+Le registre propose des filtres Date d'arrêté et Version, trois indicateurs de
+synthèse et deux onglets séparant les blocs actifs des blocs supprimés. Tous les
+résultats sont triés par dernier événement : création pour un bloc actif,
+suppression pour un bloc supprimé.

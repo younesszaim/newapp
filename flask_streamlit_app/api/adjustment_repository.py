@@ -86,7 +86,7 @@ def list_registry_blocks(connection: PostgreSQLConnection) -> list[dict[str, Any
             """SELECT adjustment_id, asofdate, asofdateflow_version, created_at,
                       created_by, status, deleted_at, deleted_by, bi_ids
                FROM public.adjustment_registry
-               ORDER BY created_at DESC"""
+               ORDER BY COALESCE(deleted_at, created_at) DESC"""
         )
         blocks = [dict(row) for row in cursor.fetchall()]
 

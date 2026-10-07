@@ -160,49 +160,104 @@ def show_registry_page() -> None:
         return
 
     dates = sorted({block["asofdate"] for block in blocks}, reverse=True)
-    selected_date = st.selectbox("Filtrer par date", ["Toutes", *dates])
-    filtered = [
-        block for block in blocks
-        if selected_date == "Toutes" or block["asofdate"] == selected_date
-    ]
-
-    for block in filtered:
-        status = "Actif" if block["status"] == "ACTIVE" else "Supprimé"
-        title = (
-            f"{block['asofdate']} · {block['asofdateflowVersion']} · "
-            f"{status} · {len(block['lines'])} ligne(s)"
-        )
-        with st.expander(title):
-            st.code(block["adjustmentId"], language=None)
-            st.caption(f"Créé le {block['createdAt']} par {block['createdBy']}")
-            if block["status"] == "DELETED":
-                st.info(
-                    f"Supprimé le {block['deletedAt']} par {block['deletedBy']}. "
-                    "Les anciennes lignes ne sont pas conservées."
-                )
-                continue
-
-            st.dataframe(block["lines"], hide_index=True, use_container_width=True)
-            confirmed = st.checkbox(
-                "Confirmer la suppression de toutes les lignes",
-                key=f"confirm-{block['adjustmentId']}",
+    filter_columns = st.columns(2)
+    selected_date = filter_columns[0].selectbox(
+        "Date d'arrêté", ["Toutes", *dates]
+    )
+    versions = sorted(
+        {
+            block["asofdateflowVersion"]
+            for block in blocks
+            if selected_date == "Toutes" or block["asofdate"] == selected_date
+        },
+        reverse=True,
+    )
+    selected_version = filter_columns[1].selectbox(
+        "Version", ["Toutes", *versions]
+    )
+    filtered = sorted(
+        [
+            block for block in blocks
+            if (selected_date == "Toutes" or block["asofdate"] == selected_date)
+            and (
+                selected_version == "Toutes"
+                or block["asofdateflowVersion"] == selected_version
             )
-            if st.button(
-                "Supprimer l'ajustement",
-                key=f"delete-{block['adjustmentId']}",
-                type="secondary",
-            ):
-                if not confirmed:
-                    st.error("Cochez la confirmation avant la suppression.")
-                else:
-                    try:
-                        delete_adjustment(block["adjustmentId"])
-                        load_registry.clear()
-                        load_lcr_summary.clear()
-                        st.success("Toutes les lignes de l'ajustement ont été supprimées.")
-                        st.rerun()
-                    except requests.HTTPError as error:
-                        st.error(error.response.json().get("error", "Suppression impossible."))
+        ],
+        key=lambda block: block["lastEventAt"],
+        reverse=True,
+    )
+    active_blocks = [block for block in filtered if block["status"] == "ACTIVE"]
+    deleted_blocks = [block for block in filtered if block["status"] == "DELETED"]
+
+    metrics = st.columns(3)
+    metrics[0].metric("Ajustements actifs", len(active_blocks))
+    metrics[1].metric(
+        "Lignes actives", sum(len(block["lines"]) for block in active_blocks)
+    )
+    metrics[2].metric("Ajustements supprimés", len(deleted_blocks))
+
+    active_tab, deleted_tab = st.tabs(
+        (f"Actifs ({len(active_blocks)})", f"Supprimés ({len(deleted_blocks)})")
+    )
+    with active_tab:
+        if not active_blocks:
+            st.info("Aucun ajustement actif pour ces filtres.")
+        for block in active_blocks:
+            _show_active_registry_block(block)
+
+    with deleted_tab:
+        if not deleted_blocks:
+            st.info("Aucun ajustement supprimé pour ces filtres.")
+        else:
+            st.dataframe(
+                [
+                    {
+                        "Dernier événement": block["lastEventAt"],
+                        "Date d'arrêté": block["asofdate"],
+                        "Version": block["asofdateflowVersion"],
+                        "Adjustment ID": block["adjustmentId"],
+                        "Supprimé par": block["deletedBy"],
+                    }
+                    for block in deleted_blocks
+                ],
+                hide_index=True,
+                use_container_width=True,
+            )
+
+
+def _show_active_registry_block(block: dict) -> None:
+    """Affiche un bloc actif replié, avec son action de suppression."""
+
+    title = (
+        f"{block['asofdate']} · {block['asofdateflowVersion']} · "
+        f"{len(block['lines'])} ligne(s) · {block['lastEventAt']}"
+    )
+    with st.expander(title):
+        st.code(block["adjustmentId"], language=None)
+        st.caption(f"Créé le {block['createdAt']} par {block['createdBy']}")
+        st.dataframe(block["lines"], hide_index=True, use_container_width=True)
+        confirmed = st.checkbox(
+            "Confirmer la suppression de toutes les lignes",
+            key=f"confirm-{block['adjustmentId']}",
+        )
+        if not st.button(
+            "Supprimer l'ajustement",
+            key=f"delete-{block['adjustmentId']}",
+            type="secondary",
+        ):
+            return
+        if not confirmed:
+            st.error("Cochez la confirmation avant la suppression.")
+            return
+        try:
+            delete_adjustment(block["adjustmentId"])
+            load_registry.clear()
+            load_lcr_summary.clear()
+            st.success("Toutes les lignes de l'ajustement ont été supprimées.")
+            st.rerun()
+        except requests.HTTPError as error:
+            st.error(error.response.json().get("error", "Suppression impossible."))
 
 
 st.set_page_config(page_title="LCR Adjustments", page_icon="🏦", layout="wide")
