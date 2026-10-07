@@ -1,13 +1,16 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { AgGridAngular } from 'ag-grid-angular';
+import { AllCommunityModule, ColDef, ModuleRegistry, themeQuartz } from 'ag-grid-community';
 
-import { AdjustmentRegistryItem } from '../../../../core/models/adjustment.model';
-import { CompactEuroPipe } from '../../../../core/pipes/compact-euro.pipe';
+import { AdjustmentLine, AdjustmentRegistryItem } from '../../../../core/models/adjustment.model';
 import { AdjustmentService } from '../../../../core/services/adjustment.service';
+
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
   selector: 'app-adjustment-registry',
   standalone: true,
-  imports: [CompactEuroPipe],
+  imports: [AgGridAngular],
   templateUrl: './adjustment-registry.html'
 })
 export class AdjustmentRegistry implements OnInit {
@@ -22,6 +25,30 @@ export class AdjustmentRegistry implements OnInit {
   readonly adjustmentToDelete = signal<AdjustmentRegistryItem | null>(null);
   readonly deleting = signal(false);
   readonly deleteError = signal<string | null>(null);
+
+  readonly gridTheme = themeQuartz.withParams({
+    accentColor: '#008C7A',
+    borderColor: '#E2E8F0',
+    headerBackgroundColor: '#F8FAFC',
+    headerTextColor: '#475569',
+    wrapperBorder: false
+  });
+  readonly defaultColDef: ColDef<AdjustmentLine> = {
+    flex: 1,
+    minWidth: 150,
+    resizable: true,
+    sortable: true
+  };
+  readonly lineColumnDefs: ColDef<AdjustmentLine>[] = [
+    { field: 'biId', headerName: 'BI ID', minWidth: 280 },
+    { field: 'tradeNo', headerName: 'TradeNo' },
+    this.amountColumn('ldpImpactLcrReglementaire', 'LCR réglementaire'),
+    this.amountColumn('ldpImpactLcrGestion', 'LCR gestion'),
+    this.amountColumn('impactLcrInflow', 'Inflow'),
+    this.amountColumn('impactLcrOutflow', 'Outflow'),
+    this.amountColumn('impactLcrAsset', 'Asset'),
+    this.amountColumn('impactLcrAssetCash', 'Asset Cash')
+  ];
 
   readonly asofdates = computed(() =>
     [...new Set(this.adjustments().map((item) => item.asofdate))].sort().reverse()
@@ -115,5 +142,17 @@ export class AdjustmentRegistry implements OnInit {
         this.deleting.set(false);
       }
     });
+  }
+
+  private amountColumn(field: keyof AdjustmentLine, headerName: string): ColDef<AdjustmentLine> {
+    return {
+      field,
+      headerName,
+      type: 'numericColumn',
+      valueFormatter: ({ value }) => new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'EUR'
+      }).format(Number(value))
+    };
   }
 }

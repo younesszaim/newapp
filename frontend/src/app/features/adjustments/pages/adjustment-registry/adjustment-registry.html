@@ -1,26 +1,22 @@
 <header>
   <h1 class="text-2xl font-semibold tracking-tight text-slate-950">Registre des ajustements</h1>
-  <p class="mt-1.5 text-sm text-slate-500">Consultez les ajustements actifs et supprimés.</p>
+  <p class="mt-1.5 text-sm text-slate-500">Chaque bloc correspond à une validation complète de deals fictifs.</p>
 </header>
 
 <section class="mt-7 rounded-xl border border-slate-200 bg-white shadow-sm">
   <div class="grid gap-4 border-b border-slate-100 px-6 py-5 md:grid-cols-2">
     <label>
       <span class="mb-2 block text-sm font-medium text-slate-700">Date d'arrêté</span>
-      <select class="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm shadow-sm outline-none focus:border-[#008C7A] focus:ring-2 focus:ring-[#008C7A]/15" (change)="selectAsofdate($event)">
+      <select class="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm shadow-sm outline-none focus:border-[#008C7A]" (change)="selectAsofdate($event)">
         <option value="">Toutes les dates</option>
-        @for (asofdate of asofdates(); track asofdate) {
-          <option [value]="asofdate">{{ asofdate }}</option>
-        }
+        @for (asofdate of asofdates(); track asofdate) { <option [value]="asofdate">{{ asofdate }}</option> }
       </select>
     </label>
     <label>
       <span class="mb-2 block text-sm font-medium text-slate-700">Version</span>
-      <select class="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm shadow-sm outline-none focus:border-[#008C7A] focus:ring-2 focus:ring-[#008C7A]/15" (change)="selectVersion($event)">
+      <select class="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm shadow-sm outline-none focus:border-[#008C7A]" (change)="selectVersion($event)">
         <option value="">Toutes les versions</option>
-        @for (version of versions(); track version) {
-          <option [value]="version">{{ version.replace('T', ' ') }}</option>
-        }
+        @for (version of versions(); track version) { <option [value]="version">{{ version.replace('T', ' ') }}</option> }
       </select>
     </label>
   </div>
@@ -31,17 +27,13 @@
     <div class="m-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error() }}</div>
   } @else {
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[1050px] text-sm">
+      <table class="w-full min-w-[1000px] text-sm">
         <thead class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
           <tr>
-            <th class="px-5 py-3">Date d'arrêté</th>
-            <th class="px-5 py-3">Version</th>
-            <th class="px-5 py-3 text-right">Réglementaire</th>
-            <th class="px-5 py-3 text-right">Gestion</th>
-            <th class="px-5 py-3">Créé le</th>
-            <th class="px-5 py-3">Créé par</th>
-            <th class="px-5 py-3">Statut</th>
-            <th class="px-5 py-3 text-right">Actions</th>
+            <th class="px-5 py-3">Date d'arrêté</th><th class="px-5 py-3">Version</th>
+            <th class="px-5 py-3">Adjustment ID</th><th class="px-5 py-3 text-center">Lignes</th>
+            <th class="px-5 py-3">Créé le</th><th class="px-5 py-3">Créé par</th>
+            <th class="px-5 py-3">Statut</th><th class="px-5 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -49,34 +41,18 @@
             <tr class="text-slate-700 hover:bg-slate-50">
               <td class="px-5 py-4 font-medium text-slate-900">{{ item.asofdate }}</td>
               <td class="px-5 py-4">{{ item.asofdateflowVersion.replace('T', ' ') }}</td>
-              <td class="px-5 py-4 text-right tabular-nums">
-                {{ item.ldpImpactLcrReglementaire === null ? '—' : (item.ldpImpactLcrReglementaire | compactEuro) }}
-              </td>
-              <td class="px-5 py-4 text-right tabular-nums">
-                {{ item.ldpImpactLcrGestion === null ? '—' : (item.ldpImpactLcrGestion | compactEuro) }}
-              </td>
-              <td class="px-5 py-4">{{ formatDateTime(item.createdAt) }}</td>
-              <td class="px-5 py-4">{{ item.createdBy }}</td>
-              <td class="px-5 py-4">
-                <span class="rounded-full px-2.5 py-1 text-xs font-semibold"
-                  [class]="item.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'">
-                  {{ item.status === 'ACTIVE' ? 'Actif' : 'Supprimé' }}
-                </span>
-              </td>
+              <td class="px-5 py-4 font-mono text-xs">{{ item.adjustmentId }}</td>
+              <td class="px-5 py-4 text-center font-semibold">{{ item.lines.length }}</td>
+              <td class="px-5 py-4">{{ formatDateTime(item.createdAt) }}</td><td class="px-5 py-4">{{ item.createdBy }}</td>
+              <td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="item.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'">{{ item.status === 'ACTIVE' ? 'Actif' : 'Supprimé' }}</span></td>
               <td class="px-5 py-4 text-right">
-                <button type="button" class="text-sm font-semibold text-[#007B69] hover:text-[#005E51]" (click)="viewedAdjustment.set(item)">
-                  Voir
-                </button>
                 @if (item.status === 'ACTIVE') {
-                  <button type="button" class="ml-4 text-sm font-semibold text-red-600 hover:text-red-800" (click)="askForDeletion(item)">
-                    Supprimer
-                  </button>
-                }
+                  <button type="button" class="text-sm font-semibold text-[#007B69] hover:text-[#005E51]" (click)="viewedAdjustment.set(item)">Voir les lignes</button>
+                  <button type="button" class="ml-4 text-sm font-semibold text-red-600 hover:text-red-800" (click)="askForDeletion(item)">Supprimer</button>
+                } @else { <span class="text-xs text-slate-400">Lignes supprimées</span> }
               </td>
             </tr>
-          } @empty {
-            <tr><td colspan="8" class="px-6 py-12 text-center text-slate-500">Aucun ajustement ne correspond aux filtres.</td></tr>
-          }
+          } @empty { <tr><td colspan="8" class="px-6 py-12 text-center text-slate-500">Aucun ajustement ne correspond aux filtres.</td></tr> }
         </tbody>
       </table>
     </div>
@@ -86,44 +62,24 @@
 @if (viewedAdjustment(); as item) {
   <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
     <div class="flex items-start justify-between gap-4">
-      <div>
-        <h2 class="font-semibold text-slate-950">Détail de l'ajustement</h2>
-        <p class="mt-1 font-mono text-xs text-slate-500">{{ item.adjustmentId }}</p>
-      </div>
+      <div><h2 class="font-semibold text-slate-950">Lignes injectées</h2><p class="mt-1 font-mono text-xs text-slate-500">{{ item.adjustmentId }} · {{ item.lines.length }} ligne{{ item.lines.length > 1 ? 's' : '' }}</p></div>
       <button type="button" class="text-sm font-medium text-slate-500 hover:text-slate-900" (click)="viewedAdjustment.set(null)">Fermer</button>
     </div>
-    <dl class="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-      <div><dt class="text-xs text-slate-500">BI ID</dt><dd class="mt-1 break-all font-medium">{{ item.biId }}</dd></div>
-      <div><dt class="text-xs text-slate-500">TradeNo</dt><dd class="mt-1 font-medium">{{ item.tradeNo ?? '—' }}</dd></div>
-      <div><dt class="text-xs text-slate-500">Inflow</dt><dd class="mt-1 font-medium">{{ item.impactLcrInflow === null ? '—' : (item.impactLcrInflow | compactEuro) }}</dd></div>
-      <div><dt class="text-xs text-slate-500">Outflow</dt><dd class="mt-1 font-medium">{{ item.impactLcrOutflow === null ? '—' : (item.impactLcrOutflow | compactEuro) }}</dd></div>
-      <div><dt class="text-xs text-slate-500">Asset</dt><dd class="mt-1 font-medium">{{ item.impactLcrAsset === null ? '—' : (item.impactLcrAsset | compactEuro) }}</dd></div>
-      <div><dt class="text-xs text-slate-500">Asset Cash</dt><dd class="mt-1 font-medium">{{ item.impactLcrAssetCash === null ? '—' : (item.impactLcrAssetCash | compactEuro) }}</dd></div>
-    </dl>
+    <div class="mt-5 overflow-hidden rounded-lg border border-slate-200">
+      <ag-grid-angular class="block w-full" [theme]="gridTheme" [rowData]="item.lines" [columnDefs]="lineColumnDefs" [defaultColDef]="defaultColDef" [domLayout]="'autoHeight'" />
+    </div>
   </section>
 }
 
 @if (adjustmentToDelete(); as item) {
   <div class="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-title">
     <section class="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
-      <h2 id="delete-title" class="text-lg font-semibold text-slate-950">Supprimer cet ajustement ?</h2>
-      <p class="mt-2 text-sm leading-6 text-slate-600">
-        Le trade de la date <strong>{{ item.asofdate }}</strong> et de la version
-        <strong>{{ item.asofdateflowVersion.replace('T', ' ') }}</strong> sera supprimé.
-        Sa trace restera disponible dans le registre avec le statut « Supprimé ».
-      </p>
-
-      @if (deleteError()) {
-        <p class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ deleteError() }}</p>
-      }
-
+      <h2 id="delete-title" class="text-lg font-semibold text-slate-950">Supprimer tout l'ajustement ?</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-600">Les <strong>{{ item.lines.length }} lignes</strong> liées à l'ajustement <strong class="break-all">{{ item.adjustmentId }}</strong> seront supprimées. Seul l'état « Supprimé », avec la date et l'auteur, restera dans le registre.</p>
+      @if (deleteError()) { <p class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ deleteError() }}</p> }
       <div class="mt-6 flex justify-end gap-3">
-        <button type="button" class="h-10 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" [disabled]="deleting()" (click)="cancelDeletion()">
-          Annuler
-        </button>
-        <button type="button" class="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-wait disabled:opacity-60" [disabled]="deleting()" (click)="confirmDeletion()">
-          {{ deleting() ? 'Suppression...' : 'Confirmer la suppression' }}
-        </button>
+        <button type="button" class="h-10 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" [disabled]="deleting()" (click)="cancelDeletion()">Annuler</button>
+        <button type="button" class="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60" [disabled]="deleting()" (click)="confirmDeletion()">{{ deleting() ? 'Suppression...' : 'Supprimer les lignes' }}</button>
       </div>
     </section>
   </div>

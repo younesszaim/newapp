@@ -5,7 +5,6 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { LcrSummary } from '../models/lcr-summary.model';
 import {
-  Adjustment,
   AdjustmentBatchRequest,
   AdjustmentRegistryItem
 } from '../models/adjustment.model';
@@ -34,8 +33,8 @@ export class AdjustmentService {
     });
   }
 
-  createAdjustments(request: AdjustmentBatchRequest): Observable<Adjustment[]> {
-    return this.http.post<Adjustment[]>(`${this.apiUrl}/adjustments`, request);
+  createAdjustments(request: AdjustmentBatchRequest): Observable<AdjustmentRegistryItem> {
+    return this.http.post<AdjustmentRegistryItem>(`${this.apiUrl}/adjustments`, request);
   }
 
   getAdjustments(): Observable<AdjustmentRegistryItem[]> {

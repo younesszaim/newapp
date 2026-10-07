@@ -98,14 +98,14 @@ def get_active_adjustment(
     query = """
         SELECT
             registry.adjustment_id,
-            registry.bi_id,
+            trade.bi_id,
             trade.ldp_impact_lcr_reglementaire,
             trade.ldp_impact_lcr_gestion,
             registry.created_at,
             registry.created_by
         FROM public.adjustment_registry AS registry
         JOIN public.completude_table AS trade
-          ON trade.bi_id = registry.bi_id
+          ON trade.bi_id = ANY(registry.bi_ids)
         WHERE registry.asofdate = %s
           AND registry.asofdateflow_version = %s
           AND registry.status = 'ACTIVE'

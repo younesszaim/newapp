@@ -53,17 +53,18 @@ base reste uniquement dans `backend/.env`.
 - colonnes obligatoires identifiées par `*` et contrôlées ligne par ligne ;
 - colonnes optionnelles clairement indiquées et converties à zéro si vides ;
 - endpoint batch transactionnel `POST /api/adjustments` ;
-- insertion atomique de toutes les lignes dans `completude_table` et
+- insertion atomique des lignes dans `completude_table` et d'un seul bloc dans
   `adjustment_registry` ;
 - plusieurs ajustements actifs autorisés pour une même date/version ;
 - dialogue Angular présentant le nombre de lignes et les totaux avant validation ;
 - appel POST du lot uniquement après confirmation ;
 - rechargement du résumé depuis PostgreSQL après création.
 - endpoint `GET /api/adjustments` incluant actifs et supprimés ;
-- page Registre avec filtres, statuts et vue de détail ;
-- snapshot des montants conservé dans le registre pour l'audit.
+- page Registre regroupée par `adjustment_id`, avec les lignes actives relues
+  depuis `completude_table` grâce à leurs `bi_id` ;
 - endpoint transactionnel `DELETE /api/adjustments/{adjustment_id}` ;
-- suppression du trade et passage du registre à `DELETED` avec date et auteur ;
+- suppression de toutes les lignes du bloc et passage du registre à `DELETED`
+  avec date et auteur, sans snapshot des lignes supprimées ;
 - dialogue de confirmation dans le registre avant toute suppression.
 - tests backend isolés couvrant création, doublon, suppression et audit.
 

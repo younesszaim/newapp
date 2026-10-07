@@ -127,20 +127,23 @@ appliqués par `ADJUSTMENT_DEFAULTS` dans `app/config.py`.
 ```text
 POST /api/adjustments
         ↓
-pour chaque ligne de la grille
+génération d'un adjustment_id commun
         ↓
-génération adjustment_id, bi_id et TradeNo
+pour chaque ligne : génération bi_id et TradeNo
         ↓
 INSERT public.completude_table
-        ↓ même connexion / même transaction
-INSERT public.adjustment_registry
+        ↓ après toutes les lignes, même connexion / même transaction
+INSERT d'un bloc dans public.adjustment_registry avec les bi_id
         ↓
 COMMIT automatique à la fin de la requête
 ```
 
 Si une insertion échoue, le context manager psycopg2 de `database.py` annule
-le lot complet. Plusieurs lignes `ACTIVE` peuvent partager la même date et la
-même version.
+le lot complet. Le registre contient un bloc `ACTIVE` par validation utilisateur,
+et plusieurs blocs peuvent partager la même date et la même version. Le endpoint
+GET relit les lignes actives directement depuis `completude_table`. Une suppression
+efface toutes les lignes du bloc puis vide ses `bi_id` ; seuls le statut `DELETED`,
+la date et l'auteur de suppression sont conservés.
 
 ## Pourquoi CORS ?
 

@@ -38,33 +38,33 @@ class AdjustmentServiceTest(TestCase):
         "app.services.adjustment_service.generate_trade_no",
         side_effect=[123456, 123457],
     )
-    def test_create_adjustments_inserts_each_trade_and_registry(
+    def test_create_adjustments_groups_trades_in_one_registry_entry(
         self,
         _trade_no: MagicMock,
         insert_trade: MagicMock,
         insert_registry: MagicMock,
     ) -> None:
         insert_registry.return_value = {
+            "adjustment_id": UUID("a2432f6a-2142-41de-a34b-6ec75625a346"),
+            "asofdate": date(2026, 10, 4),
+            "asofdateflow_version": datetime(2026, 10, 5, 10, 30),
             "created_at": datetime(2026, 10, 7, 9, 0),
             "created_by": "local_user",
             "status": "ACTIVE",
+            "deleted_at": None,
+            "deleted_by": None,
         }
 
         result = create_adjustments(self.connection, self.request)
 
-        self.assertEqual([item.trade_no for item in result], [123456, 123457])
-        self.assertTrue(all(item.status == "ACTIVE" for item in result))
+        self.assertEqual([item.trade_no for item in result.lines], [123456, 123457])
+        self.assertEqual(result.status, "ACTIVE")
         self.assertEqual(insert_trade.call_count, 2)
-        self.assertEqual(insert_registry.call_count, 2)
-        for trade_call, registry_call in zip(
-            insert_trade.call_args_list,
-            insert_registry.call_args_list,
-            strict=True,
-        ):
-            self.assertEqual(
-                trade_call.kwargs["bi_id"],
-                registry_call.kwargs["bi_id"],
-            )
+        insert_registry.assert_called_once()
+        self.assertEqual(
+            insert_registry.call_args.kwargs["bi_ids"],
+            [call.kwargs["bi_id"] for call in insert_trade.call_args_list],
+        )
 
     def test_batch_requires_at_least_one_line(self) -> None:
         with self.assertRaises(ValueError):
@@ -75,24 +75,27 @@ class AdjustmentServiceTest(TestCase):
             )
 
     @patch("app.services.adjustment_service.mark_registry_entry_deleted")
-    @patch("app.services.adjustment_service.delete_adjustment_trade", return_value=True)
+    @patch("app.services.adjustment_service.delete_adjustment_trades", return_value=2)
     @patch("app.services.adjustment_service.get_registry_entry_for_update")
     def test_delete_adjustment_deletes_trade_then_preserves_audit(
         self,
         get_registry: MagicMock,
-        delete_trade: MagicMock,
+        delete_trades: MagicMock,
         mark_deleted: MagicMock,
     ) -> None:
         adjustment_id = UUID("a2432f6a-2142-41de-a34b-6ec75625a346")
         get_registry.return_value = {
             "adjustment_id": adjustment_id,
-            "bi_id": "trade-bi-id",
+            "bi_ids": ["trade-bi-id-1", "trade-bi-id-2"],
             "status": "ACTIVE",
         }
 
         delete_adjustment(self.connection, adjustment_id)
 
-        delete_trade.assert_called_once_with(self.connection, "trade-bi-id")
+        delete_trades.assert_called_once_with(
+            self.connection,
+            ["trade-bi-id-1", "trade-bi-id-2"],
+        )
         mark_deleted.assert_called_once_with(
             self.connection,
             adjustment_id,

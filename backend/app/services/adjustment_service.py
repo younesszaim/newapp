@@ -9,7 +9,7 @@ from psycopg2.extensions import connection as PostgreSQLConnection
 
 from app.config import ADJUSTMENT_DEFAULTS
 from app.repositories.adjustment_repository import (
-    delete_adjustment_trade,
+    delete_adjustment_trades,
     get_registry_entry_for_update,
     insert_adjustment_trade,
     insert_registry_entry,
@@ -20,7 +20,6 @@ from app.repositories.adjustment_repository import (
 from app.schemas.adjustment import (
     AdjustmentAmounts,
     AdjustmentBatchRequest,
-    AdjustmentListItem,
     AdjustmentResponse,
 )
 
@@ -39,16 +38,15 @@ def generate_trade_no(connection: PostgreSQLConnection) -> int:
     raise HTTPException(status_code=500, detail="Impossible de générer un TradeNo unique.")
 
 
-def _create_adjustment(
+def _create_adjustment_line(
     connection: PostgreSQLConnection,
     *,
     asofdate: date,
     version: datetime,
     amounts: AdjustmentAmounts,
-) -> AdjustmentResponse:
+) -> dict:
     """Insère un deal fictif dans la transaction courante."""
 
-    adjustment_id = uuid4()
     bi_id = str(uuid4())
     trade_no = generate_trade_no(connection)
 
@@ -66,48 +64,27 @@ def _create_adjustment(
         impact_asset=amounts.impact_lcr_asset,
         impact_asset_cash=amounts.impact_lcr_asset_cash,
     )
-    registry = insert_registry_entry(
-        connection,
-        adjustment_id=adjustment_id,
-        bi_id=bi_id,
-        asofdate=asofdate,
-        version=version,
-        created_by=CREATED_BY,
-        trade_no=trade_no,
-        lcr_reglementaire=amounts.ldp_impact_lcr_reglementaire,
-        lcr_gestion=amounts.ldp_impact_lcr_gestion,
-        impact_inflow=amounts.impact_lcr_inflow,
-        impact_outflow=amounts.impact_lcr_outflow,
-        impact_asset=amounts.impact_lcr_asset,
-        impact_asset_cash=amounts.impact_lcr_asset_cash,
-    )
-
-    return AdjustmentResponse(
-        adjustment_id=adjustment_id,
-        bi_id=bi_id,
-        trade_no=trade_no,
-        asofdate=asofdate,
-        asofdateflow_version=version,
-        ldp_impact_lcr_reglementaire=amounts.ldp_impact_lcr_reglementaire,
-        ldp_impact_lcr_gestion=amounts.ldp_impact_lcr_gestion,
-        impact_lcr_inflow=amounts.impact_lcr_inflow,
-        impact_lcr_outflow=amounts.impact_lcr_outflow,
-        impact_lcr_asset=amounts.impact_lcr_asset,
-        impact_lcr_asset_cash=amounts.impact_lcr_asset_cash,
-        created_at=registry["created_at"],
-        created_by=registry["created_by"],
-        status=registry["status"],
-    )
+    return {
+        "bi_id": bi_id,
+        "trade_no": trade_no,
+        "ldp_impact_lcr_reglementaire": amounts.ldp_impact_lcr_reglementaire,
+        "ldp_impact_lcr_gestion": amounts.ldp_impact_lcr_gestion,
+        "impact_lcr_inflow": amounts.impact_lcr_inflow,
+        "impact_lcr_outflow": amounts.impact_lcr_outflow,
+        "impact_lcr_asset": amounts.impact_lcr_asset,
+        "impact_lcr_asset_cash": amounts.impact_lcr_asset_cash,
+    }
 
 
 def create_adjustments(
     connection: PostgreSQLConnection,
     request: AdjustmentBatchRequest,
-) -> list[AdjustmentResponse]:
+) -> AdjustmentResponse:
     """Crée toutes les lignes AG Grid dans une seule transaction."""
 
-    return [
-        _create_adjustment(
+    adjustment_id = uuid4()
+    lines = [
+        _create_adjustment_line(
             connection,
             asofdate=request.asofdate,
             version=request.asofdateflow_version,
@@ -115,12 +92,21 @@ def create_adjustments(
         )
         for amounts in request.adjustments
     ]
+    registry = insert_registry_entry(
+        connection,
+        adjustment_id=adjustment_id,
+        bi_ids=[line["bi_id"] for line in lines],
+        asofdate=request.asofdate,
+        version=request.asofdateflow_version,
+        created_by=CREATED_BY,
+    )
+    return AdjustmentResponse(**registry, lines=lines)
 
 
-def get_adjustments(connection: PostgreSQLConnection) -> list[AdjustmentListItem]:
+def get_adjustments(connection: PostgreSQLConnection) -> list[AdjustmentResponse]:
     """Convertit les lignes SQL du registre en contrats API."""
 
-    return [AdjustmentListItem(**row) for row in list_adjustments(connection)]
+    return [AdjustmentResponse(**row) for row in list_adjustments(connection)]
 
 
 def delete_adjustment(connection: PostgreSQLConnection, adjustment_id: UUID) -> None:
@@ -132,10 +118,11 @@ def delete_adjustment(connection: PostgreSQLConnection, adjustment_id: UUID) -> 
     if registry["status"] == "DELETED":
         raise HTTPException(status_code=409, detail="Cet ajustement est déjà supprimé.")
 
-    if not delete_adjustment_trade(connection, registry["bi_id"]):
+    bi_ids = registry["bi_ids"]
+    if not bi_ids or delete_adjustment_trades(connection, bi_ids) != len(bi_ids):
         raise HTTPException(
             status_code=409,
-            detail="Le trade associé à cet ajustement est introuvable.",
+            detail="Une ou plusieurs lignes de cet ajustement sont introuvables.",
         )
 
     mark_registry_entry_deleted(connection, adjustment_id, CREATED_BY)
