@@ -10,6 +10,15 @@ load_dotenv()
 
 API_URL = os.getenv("FLASK_API_URL", "http://127.0.0.1:5000")
 
+
+@st.cache_data(ttl=30)
+def load_asofdates() -> list[str]:
+    """Charge les dates depuis Flask et les garde 30 secondes en cache."""
+
+    response = requests.get(f"{API_URL}/api/asofdates", timeout=10)
+    response.raise_for_status()
+    return response.json()
+
 st.set_page_config(page_title="LCR Adjustments", page_icon="🏦", layout="wide")
 
 st.title("LCR Adjustments")
@@ -21,6 +30,21 @@ try:
     response = requests.get(f"{API_URL}/api/health", timeout=3)
     response.raise_for_status()
     st.success("API Flask connectée")
-    st.json(response.json())
 except requests.RequestException:
     st.warning("API Flask indisponible. Démarrez-la avec la commande du README.")
+
+st.divider()
+st.subheader("Contexte LCR")
+
+try:
+    asofdates = load_asofdates()
+    selected_asofdate = st.selectbox(
+        "Date d'arrêté",
+        options=asofdates,
+        index=None,
+        placeholder="Sélectionnez une date",
+    )
+    if selected_asofdate:
+        st.info(f"Date sélectionnée : {selected_asofdate}")
+except requests.RequestException:
+    st.error("Impossible de charger les dates d'arrêté depuis PostgreSQL.")

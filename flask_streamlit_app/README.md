@@ -55,5 +55,15 @@ flask_streamlit_app/
 └── streamlit_app.py    # interface Streamlit
 ```
 
-La prochaine étape ajoutera la connexion PostgreSQL et l'endpoint des dates
-d'arrêté, sans encore construire le reste des écrans.
+## Étape 2 — connexion PostgreSQL et dates d'arrêté
+
+Dans `.env`, remplacez la valeur d'exemple de `DATABASE_URL` par votre vraie
+chaîne de connexion PostgreSQL. Ne commitez jamais ce fichier.
+
+Une fois Flask redémarré :
+
+- `GET /api/asofdates` retourne les dates disponibles ;
+- Swagger permet de tester le endpoint depuis `/apidocs` ;
+- Streamlit affiche ces dates dans le sélecteur « Date d'arrêté ».
+
+La prochaine étape ajoutera les versions disponibles pour la date sélectionnée.

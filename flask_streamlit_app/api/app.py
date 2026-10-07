@@ -7,6 +7,8 @@ Réponse : {"status": "ok"}
 from flask import Flask, jsonify
 from flasgger import Swagger
 
+from api.context_routes import context_blueprint
+
 
 def create_app() -> Flask:
     """Construit l'application Flask afin de faciliter les futurs tests."""
@@ -26,6 +28,7 @@ def create_app() -> Flask:
             }
         },
     )
+    app.register_blueprint(context_blueprint)
 
     @app.get("/api/health")
     def health() -> tuple[dict[str, str], int]:
