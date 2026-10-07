@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
-import { AdjustmentRequest } from '../../../../core/models/adjustment.model';
+import { AdjustmentBatchRequest } from '../../../../core/models/adjustment.model';
 
 @Component({
   selector: 'app-confirmation-dialog',
@@ -8,7 +8,7 @@ import { AdjustmentRequest } from '../../../../core/models/adjustment.model';
   templateUrl: './confirmation-dialog.html'
 })
 export class ConfirmationDialog {
-  @Input({ required: true }) request!: AdjustmentRequest;
+  @Input({ required: true }) request!: AdjustmentBatchRequest;
   @Input() saving = false;
   @Input() error: string | null = null;
 
@@ -23,5 +23,9 @@ export class ConfirmationDialog {
       maximumFractionDigits: 2
     }).format(value);
     return value > 0 ? `+${formatted}` : formatted;
+  }
+
+  total(field: 'ldpImpactLcrReglementaire' | 'ldpImpactLcrGestion'): number {
+    return this.request.adjustments.reduce((sum, adjustment) => sum + adjustment[field], 0);
   }
 }

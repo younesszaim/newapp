@@ -7,15 +7,18 @@ export interface AdjustmentAmounts {
   impactLcrAssetCash: number;
 }
 
-export interface AdjustmentRequest extends AdjustmentAmounts {
+export interface AdjustmentBatchRequest {
   asofdate: string;
   asofdateflowVersion: string;
+  adjustments: AdjustmentAmounts[];
 }
 
-export interface Adjustment extends AdjustmentRequest {
+export interface Adjustment extends AdjustmentAmounts {
   adjustmentId: string;
   biId: string;
   tradeNo: number;
+  asofdate: string;
+  asofdateflowVersion: string;
   createdAt: string;
   createdBy: string;
   status: 'ACTIVE' | 'DELETED';

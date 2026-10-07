@@ -5,9 +5,9 @@ from uuid import UUID
 from fastapi import APIRouter, status
 
 from app.routers.context_router import DatabaseConnection
-from app.schemas.adjustment import AdjustmentListItem, AdjustmentRequest, AdjustmentResponse
+from app.schemas.adjustment import AdjustmentBatchRequest, AdjustmentListItem, AdjustmentResponse
 from app.services.adjustment_service import (
-    create_adjustment,
+    create_adjustments,
     delete_adjustment,
     get_adjustments,
 )
@@ -24,17 +24,17 @@ def list_manual_adjustments(connection: DatabaseConnection) -> list[AdjustmentLi
 
 @router.post(
     "",
-    response_model=AdjustmentResponse,
+    response_model=list[AdjustmentResponse],
     response_model_by_alias=True,
     status_code=status.HTTP_201_CREATED,
 )
 def create_manual_adjustment(
-    request: AdjustmentRequest,
+    request: AdjustmentBatchRequest,
     connection: DatabaseConnection,
-) -> AdjustmentResponse:
-    """Crée un trade fictif et son registre dans une seule transaction."""
+) -> list[AdjustmentResponse]:
+    """Crée plusieurs deals fictifs dans une seule transaction."""
 
-    return create_adjustment(connection, request)
+    return create_adjustments(connection, request)
 
 
 @router.delete("/{adjustment_id}", status_code=status.HTTP_204_NO_CONTENT)

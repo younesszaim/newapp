@@ -44,7 +44,7 @@
 @if (summary(); as loadedSummary) {
   @if (creationSuccess()) {
     <div class="mt-6 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-      L'ajustement a été enregistré. La situation LCR a été actualisée depuis PostgreSQL.
+      Les deals fictifs ont été enregistrés. La situation LCR a été actualisée depuis PostgreSQL.
     </div>
   }
 
@@ -56,36 +56,15 @@
     <app-lcr-summary-table [summary]="loadedSummary" />
   </section>
 
-  @if (!loadedSummary.hasAdjustment) {
-    <section class="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div class="border-b border-slate-100 px-6 py-5">
-        <h2 class="text-base font-semibold text-slate-900">{{ adjustmentDraft() ? "Aperçu de l'ajustement" : "Créer l'ajustement" }}</h2>
-        <p class="mt-1 text-sm text-slate-500">
-          {{ adjustmentDraft() ? "Vérifiez le trade et les valeurs projetées avant de continuer." : "Saisissez les impacts en euros. Les valeurs négatives sont autorisées." }}
-        </p>
-      </div>
-      <div class="px-6 py-6">
-        @if (adjustmentDraft(); as draft) {
-          <app-adjustment-preview
-            [asofdate]="loadedSummary.asofdate"
-            [version]="loadedSummary.asofdateflowVersion"
-            [summary]="loadedSummary"
-            [amounts]="draft"
-            (cancelled)="cancelPreview()"
-            (confirmed)="requestConfirmation()"
-          />
-
-        } @else {
-          <app-adjustment-form (preview)="preparePreview($event)" />
-        }
-      </div>
-    </section>
-  } @else {
-    <section class="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-6 py-5">
-      <h2 class="font-semibold text-amber-900">Un ajustement existe déjà</h2>
-      <p class="mt-1 text-sm text-amber-700">La création est désactivée pour ce contexte.</p>
-    </section>
-  }
+  <section class="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-6 py-5">
+      <h2 class="text-base font-semibold text-slate-900">Deals fictifs à créer</h2>
+      <p class="mt-1 text-sm text-slate-500">Saisissez directement les impacts dans la grille. Plusieurs lignes sont autorisées pour le même contexte.</p>
+    </div>
+    <div class="px-6 py-6">
+      <app-adjustment-form (preview)="preparePreview($event)" />
+    </div>
+  </section>
 }
 
 @if (confirmationRequested() && adjustmentRequest(); as request) {

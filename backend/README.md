@@ -120,14 +120,14 @@ Exemple abrégé :
 
 ## Création transactionnelle
 
-`POST /api/adjustments` reçoit uniquement le contexte et les six montants.
-Les champs techniques sont appliqués par `ADJUSTMENT_DEFAULTS` dans
-`app/config.py`.
+`POST /api/adjustments` reçoit le contexte commun et une liste de 1 à 100 deals
+fictifs. Chaque ligne contient les six montants. Les champs techniques sont
+appliqués par `ADJUSTMENT_DEFAULTS` dans `app/config.py`.
 
 ```text
 POST /api/adjustments
         ↓
-vérification de l'unicité ACTIVE
+pour chaque ligne de la grille
         ↓
 génération adjustment_id, bi_id et TradeNo
         ↓
@@ -139,8 +139,8 @@ COMMIT automatique à la fin de la requête
 ```
 
 Si une insertion échoue, le context manager psycopg2 de `database.py` annule
-la transaction. L'index unique du registre protège aussi les requêtes
-concurrentes et l'API renvoie `409 Conflict` lorsqu'un ajustement actif existe.
+le lot complet. Plusieurs lignes `ACTIVE` peuvent partager la même date et la
+même version.
 
 ## Pourquoi CORS ?
 

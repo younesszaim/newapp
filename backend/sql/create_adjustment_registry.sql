@@ -15,11 +15,9 @@ CREATE TABLE IF NOT EXISTS public.adjustment_registry (
         CHECK (status IN ('ACTIVE', 'DELETED'))
 );
 
--- Une seule ligne ACTIVE est permise par contexte. Les anciennes lignes
--- DELETED ne bloquent donc pas la création d'un nouvel ajustement.
-CREATE UNIQUE INDEX IF NOT EXISTS uq_adjustment_registry_active_context
-    ON public.adjustment_registry (asofdate, asofdateflow_version)
-    WHERE status = 'ACTIVE';
+-- Plusieurs deals fictifs peuvent désormais être créés pour le même contexte.
+-- DROP est idempotent : le script reste rejouable sur une ancienne base.
+DROP INDEX IF EXISTS public.uq_adjustment_registry_active_context;
 
 CREATE INDEX IF NOT EXISTS ix_adjustment_registry_context
     ON public.adjustment_registry (asofdate, asofdateflow_version);

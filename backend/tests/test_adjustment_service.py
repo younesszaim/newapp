@@ -8,8 +8,8 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
-from app.schemas.adjustment import AdjustmentRequest
-from app.services.adjustment_service import create_adjustment, delete_adjustment
+from app.schemas.adjustment import AdjustmentBatchRequest
+from app.services.adjustment_service import create_adjustments, delete_adjustment
 
 
 class AdjustmentServiceTest(TestCase):
@@ -17,24 +17,29 @@ class AdjustmentServiceTest(TestCase):
 
     def setUp(self) -> None:
         self.connection = MagicMock(name="postgresql_connection")
-        self.request = AdjustmentRequest(
+        self.request = AdjustmentBatchRequest(
             asofdate=date(2026, 10, 4),
             asofdateflowVersion=datetime(2026, 10, 5, 10, 30),
-            ldpImpactLcrReglementaire=Decimal("5000000"),
-            ldpImpactLcrGestion=Decimal("0"),
-            impactLcrInflow=Decimal("0"),
-            impactLcrOutflow=Decimal("0"),
-            impactLcrAsset=Decimal("0"),
-            impactLcrAssetCash=Decimal("0"),
+            adjustments=[
+                {
+                    "ldpImpactLcrReglementaire": Decimal("5000000"),
+                    "ldpImpactLcrGestion": Decimal("0"),
+                },
+                {
+                    "ldpImpactLcrReglementaire": Decimal("1000000"),
+                    "ldpImpactLcrGestion": Decimal("250000"),
+                },
+            ],
         )
 
     @patch("app.services.adjustment_service.insert_registry_entry")
     @patch("app.services.adjustment_service.insert_adjustment_trade")
-    @patch("app.services.adjustment_service.generate_trade_no", return_value=123456)
-    @patch("app.services.adjustment_service.adjustment_exists", return_value=False)
-    def test_create_adjustment_inserts_trade_then_registry(
+    @patch(
+        "app.services.adjustment_service.generate_trade_no",
+        side_effect=[123456, 123457],
+    )
+    def test_create_adjustments_inserts_each_trade_and_registry(
         self,
-        _exists: MagicMock,
         _trade_no: MagicMock,
         insert_trade: MagicMock,
         insert_registry: MagicMock,
@@ -45,27 +50,29 @@ class AdjustmentServiceTest(TestCase):
             "status": "ACTIVE",
         }
 
-        result = create_adjustment(self.connection, self.request)
+        result = create_adjustments(self.connection, self.request)
 
-        self.assertEqual(result.trade_no, 123456)
-        self.assertEqual(result.status, "ACTIVE")
-        self.assertEqual(result.ldp_impact_lcr_reglementaire, 5_000_000)
-        insert_trade.assert_called_once()
-        insert_registry.assert_called_once()
-        self.assertEqual(
-            insert_trade.call_args.kwargs["bi_id"],
-            insert_registry.call_args.kwargs["bi_id"],
-        )
+        self.assertEqual([item.trade_no for item in result], [123456, 123457])
+        self.assertTrue(all(item.status == "ACTIVE" for item in result))
+        self.assertEqual(insert_trade.call_count, 2)
+        self.assertEqual(insert_registry.call_count, 2)
+        for trade_call, registry_call in zip(
+            insert_trade.call_args_list,
+            insert_registry.call_args_list,
+            strict=True,
+        ):
+            self.assertEqual(
+                trade_call.kwargs["bi_id"],
+                registry_call.kwargs["bi_id"],
+            )
 
-    @patch("app.services.adjustment_service.adjustment_exists", return_value=True)
-    def test_create_adjustment_rejects_an_active_duplicate(
-        self,
-        _exists: MagicMock,
-    ) -> None:
-        with self.assertRaises(HTTPException) as context:
-            create_adjustment(self.connection, self.request)
-
-        self.assertEqual(context.exception.status_code, 409)
+    def test_batch_requires_at_least_one_line(self) -> None:
+        with self.assertRaises(ValueError):
+            AdjustmentBatchRequest(
+                asofdate=date(2026, 10, 4),
+                asofdateflowVersion=datetime(2026, 10, 5, 10, 30),
+                adjustments=[],
+            )
 
     @patch("app.services.adjustment_service.mark_registry_entry_deleted")
     @patch("app.services.adjustment_service.delete_adjustment_trade", return_value=True)
@@ -101,4 +108,3 @@ class AdjustmentServiceTest(TestCase):
             delete_adjustment(self.connection, UUID(int=0))
 
         self.assertEqual(context.exception.status_code, 404)
-

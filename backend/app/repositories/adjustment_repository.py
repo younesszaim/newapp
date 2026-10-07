@@ -8,24 +8,6 @@ from uuid import UUID
 from psycopg2.extensions import connection as PostgreSQLConnection
 
 
-def adjustment_exists(
-    connection: PostgreSQLConnection,
-    asofdate: date,
-    version: datetime,
-) -> bool:
-    query = """
-        SELECT 1
-        FROM public.adjustment_registry
-        WHERE asofdate = %s
-          AND asofdateflow_version = %s
-          AND status = 'ACTIVE'
-        LIMIT 1
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(query, (asofdate, version))
-        return cursor.fetchone() is not None
-
-
 def trade_no_exists(connection: PostgreSQLConnection, trade_no: int) -> bool:
     with connection.cursor() as cursor:
         cursor.execute(

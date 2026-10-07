@@ -24,7 +24,7 @@ Supabase PostgreSQL
 Angular ne se connecte jamais directement à PostgreSQL. Le mot de passe de la
 base reste uniquement dans `backend/.env`.
 
-## État actuel : étape 14
+## État actuel : étape 15
 
 - frontend Angular standalone avec routing ;
 - Tailwind CSS configuré ;
@@ -49,16 +49,15 @@ base reste uniquement dans `backend/.env`.
 - formatage réutilisable en `K€`, `M€` et `Bn€` avec valeur exacte en
   infobulle.
 - tableau implémenté avec AG Grid Community et thème Quartz personnalisé CACIB.
-- formulaire Angular Reactive Forms pour les six montants d'ajustement ;
-- champs avancés repliables et initialisés à zéro ;
-- formulaire masqué lorsqu'un ajustement actif existe.
-- aperçu sans écriture avec contexte, valeurs techniques et impacts ;
-- comparaison des LCR actuels et projetés.
-- endpoint transactionnel `POST /api/adjustments` ;
-- insertion atomique dans `completude_table` et `adjustment_registry` ;
-- règle d'unicité backend avec réponse `409 Conflict`.
-- dialogue Angular de confirmation finale ;
-- appel POST uniquement après confirmation ;
+- AG Grid éditable pour saisir plusieurs deals fictifs ;
+- colonnes obligatoires identifiées par `*` et contrôlées ligne par ligne ;
+- colonnes optionnelles clairement indiquées et converties à zéro si vides ;
+- endpoint batch transactionnel `POST /api/adjustments` ;
+- insertion atomique de toutes les lignes dans `completude_table` et
+  `adjustment_registry` ;
+- plusieurs ajustements actifs autorisés pour une même date/version ;
+- dialogue Angular présentant le nombre de lignes et les totaux avant validation ;
+- appel POST du lot uniquement après confirmation ;
 - rechargement du résumé depuis PostgreSQL après création.
 - endpoint `GET /api/adjustments` incluant actifs et supprimés ;
 - page Registre avec filtres, statuts et vue de détail ;
@@ -117,4 +116,4 @@ npm test -- --watch=false
 
 ## Prochaine étape
 
-Ajouter des notifications de succès et d'erreur homogènes dans l'interface.
+Valider la nouvelle saisie multi-lignes avec les utilisateurs métier.

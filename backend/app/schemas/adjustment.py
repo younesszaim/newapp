@@ -7,17 +7,25 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class AdjustmentRequest(BaseModel):
+class AdjustmentAmounts(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    asofdate: date
-    asofdateflow_version: datetime = Field(alias="asofdateflowVersion")
     ldp_impact_lcr_reglementaire: Decimal = Field(alias="ldpImpactLcrReglementaire")
     ldp_impact_lcr_gestion: Decimal = Field(alias="ldpImpactLcrGestion")
     impact_lcr_inflow: Decimal = Field(default=Decimal("0"), alias="impactLcrInflow")
     impact_lcr_outflow: Decimal = Field(default=Decimal("0"), alias="impactLcrOutflow")
     impact_lcr_asset: Decimal = Field(default=Decimal("0"), alias="impactLcrAsset")
     impact_lcr_asset_cash: Decimal = Field(default=Decimal("0"), alias="impactLcrAssetCash")
+
+
+class AdjustmentBatchRequest(BaseModel):
+    """Contexte commun et liste des deals fictifs saisis dans AG Grid."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    asofdate: date
+    asofdateflow_version: datetime = Field(alias="asofdateflowVersion")
+    adjustments: list[AdjustmentAmounts] = Field(min_length=1, max_length=100)
 
 
 class AdjustmentResponse(BaseModel):
