@@ -85,4 +85,12 @@ colonnes LCR réglementaire et LCR gestion sont obligatoires ; les quatre autres
 valent zéro lorsqu'elles sont vides. `POST /api/adjustments` enregistre le lot
 dans une seule transaction et crée un seul `adjustment_id` dans le registre.
 
-La prochaine étape construira la page du registre et la suppression groupée.
+## Étape 6 — registre et suppression groupée
+
+Le menu Streamlit sépare maintenant la création et le registre. Chaque bloc du
+registre affiche son `adjustment_id`, son contexte, son statut et ses lignes
+actives relues depuis `completude_table`. La suppression efface toutes les
+lignes du bloc et conserve uniquement le statut `DELETED`, la date et l'auteur.
+
+La prochaine étape appliquera le thème visuel CACIB et finalisera l'expérience
+utilisateur.

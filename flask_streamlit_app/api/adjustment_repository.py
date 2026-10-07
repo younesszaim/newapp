@@ -76,3 +76,89 @@ def insert_registry_block(
                ) VALUES (%s, %s, %s, %s, %s, 'ACTIVE')""",
             (str(adjustment_id), bi_ids, asofdate, version, created_by),
         )
+
+
+def list_registry_blocks(connection: PostgreSQLConnection) -> list[dict[str, Any]]:
+    """Retourne les blocs et relit leurs lignes actives dans completude_table."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """SELECT adjustment_id, asofdate, asofdateflow_version, created_at,
+                      created_by, status, deleted_at, deleted_by, bi_ids
+               FROM public.adjustment_registry
+               ORDER BY created_at DESC"""
+        )
+        blocks = [dict(row) for row in cursor.fetchall()]
+
+    active_bi_ids = [bi_id for block in blocks for bi_id in block["bi_ids"]]
+    lines_by_bi_id = {}
+    if active_bi_ids:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT bi_id, tradeno,
+                          ldp_impact_lcr_reglementaire,
+                          ldp_impact_lcr_gestion,
+                          impact_lcr_inflow, impact_lcr_outflow,
+                          impact_lcr_asset, impact_lcr_asset_cash
+                   FROM public.completude_table
+                   WHERE bi_id = ANY(%s)""",
+                (active_bi_ids,),
+            )
+            lines_by_bi_id = {row["bi_id"]: dict(row) for row in cursor.fetchall()}
+
+    for block in blocks:
+        block["lines"] = [
+            lines_by_bi_id[bi_id]
+            for bi_id in block.pop("bi_ids")
+            if bi_id in lines_by_bi_id
+        ]
+    return blocks
+
+
+def get_registry_block_for_update(
+    connection: PostgreSQLConnection,
+    adjustment_id: UUID,
+) -> dict[str, Any] | None:
+    """Verrouille un bloc pendant sa suppression."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """SELECT adjustment_id, bi_ids, status
+               FROM public.adjustment_registry
+               WHERE adjustment_id = %s
+               FOR UPDATE""",
+            (str(adjustment_id),),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def delete_adjustment_trades(
+    connection: PostgreSQLConnection,
+    bi_ids: list[str],
+) -> int:
+    """Supprime physiquement toutes les lignes du bloc."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM public.completude_table WHERE bi_id = ANY(%s)",
+            (bi_ids,),
+        )
+        return cursor.rowcount
+
+
+def mark_registry_block_deleted(
+    connection: PostgreSQLConnection,
+    adjustment_id: UUID,
+    deleted_by: str,
+) -> None:
+    """Conserve uniquement l'audit du bloc après suppression."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """UPDATE public.adjustment_registry
+               SET status = 'DELETED', deleted_at = CURRENT_TIMESTAMP,
+                   deleted_by = %s, bi_ids = ARRAY[]::VARCHAR(36)[]
+               WHERE adjustment_id = %s""",
+            (deleted_by, str(adjustment_id)),
+        )

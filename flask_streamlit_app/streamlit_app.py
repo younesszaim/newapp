@@ -1,4 +1,4 @@
-"""Point d'entrée de l'interface Streamlit."""
+"""Interface Streamlit de gestion des ajustements LCR."""
 
 import os
 
@@ -8,60 +8,51 @@ import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
-
 API_URL = os.getenv("FLASK_API_URL", "http://127.0.0.1:5000")
+
+
+def api_get(path: str, **kwargs) -> dict | list:
+    response = requests.get(f"{API_URL}{path}", timeout=30, **kwargs)
+    response.raise_for_status()
+    return response.json()
 
 
 @st.cache_data(ttl=30)
 def load_asofdates() -> list[str]:
-    """Charge les dates depuis Flask et les garde 30 secondes en cache."""
-
-    response = requests.get(f"{API_URL}/api/asofdates", timeout=10)
-    response.raise_for_status()
-    return response.json()
+    return api_get("/api/asofdates")
 
 
 @st.cache_data(ttl=30)
 def load_versions(asofdate: str) -> list[str]:
-    """Charge uniquement les versions de la date sélectionnée."""
-
-    response = requests.get(
-        f"{API_URL}/api/asofdates/{asofdate}/versions",
-        timeout=10,
-    )
-    response.raise_for_status()
-    return response.json()
+    return api_get(f"/api/asofdates/{asofdate}/versions")
 
 
 @st.cache_data(ttl=30)
 def load_lcr_summary(asofdate: str, version: str) -> dict:
-    """Charge les agrégats LCR du contexte complet."""
-
-    response = requests.get(
-        f"{API_URL}/api/lcr-summary",
+    return api_get(
+        "/api/lcr-summary",
         params={"asofdate": asofdate, "version": version},
-        timeout=30,
     )
-    response.raise_for_status()
-    return response.json()
+
+
+@st.cache_data(ttl=15)
+def load_registry() -> list[dict]:
+    return api_get("/api/adjustments")
 
 
 def format_euro(value: float) -> str:
-    """Affiche un montant compact dans les cartes KPI."""
-
     absolute_value = abs(value)
-    if absolute_value >= 1_000_000_000:
-        return f"{value / 1_000_000_000:.2f} Bn€"
-    if absolute_value >= 1_000_000:
-        return f"{value / 1_000_000:.2f} M€"
-    if absolute_value >= 1_000:
-        return f"{value / 1_000:.2f} K€"
+    for threshold, divisor, suffix in (
+        (1_000_000_000, 1_000_000_000, "Bn€"),
+        (1_000_000, 1_000_000, "M€"),
+        (1_000, 1_000, "K€"),
+    ):
+        if absolute_value >= threshold:
+            return f"{value / divisor:.2f} {suffix}"
     return f"{value:.2f} €"
 
 
 def save_adjustments(asofdate: str, version: str, rows: list[dict]) -> dict:
-    """Envoie toutes les lignes à Flask dans une seule requête."""
-
     response = requests.post(
         f"{API_URL}/api/adjustments",
         json={
@@ -74,116 +65,155 @@ def save_adjustments(asofdate: str, version: str, rows: list[dict]) -> dict:
     response.raise_for_status()
     return response.json()
 
-st.set_page_config(page_title="LCR Adjustments", page_icon="🏦", layout="wide")
 
-st.title("LCR Adjustments")
-st.caption("Prototype Flask + Streamlit — thème CACIB à venir")
-
-st.subheader("État de l'API")
-
-try:
-    response = requests.get(f"{API_URL}/api/health", timeout=3)
+def delete_adjustment(adjustment_id: str) -> None:
+    response = requests.delete(
+        f"{API_URL}/api/adjustments/{adjustment_id}", timeout=30
+    )
     response.raise_for_status()
-    st.success("API Flask connectée")
-except requests.RequestException:
-    st.warning("API Flask indisponible. Démarrez-la avec la commande du README.")
 
-st.divider()
-st.subheader("Contexte LCR")
 
-try:
-    asofdates = load_asofdates()
-    selected_asofdate = st.selectbox(
-        "Date d'arrêté",
-        options=asofdates,
-        index=None,
+def show_summary(asofdate: str, version: str) -> None:
+    summary = load_lcr_summary(asofdate, version)
+    st.subheader("Résumé LCR")
+    total = summary["total"]
+    columns = st.columns(4)
+    columns[0].metric("Montant 0D", format_euro(total["amount0d"]))
+    columns[1].metric("Montant 30D", format_euro(total["amount30d"]))
+    columns[2].metric("LCR réglementaire", format_euro(total["lcrReglementaire"]))
+    columns[3].metric("LCR gestion", format_euro(total["lcrGestion"]))
+    st.dataframe(summary["rows"], hide_index=True, use_container_width=True)
+
+
+def show_adjustment_editor(asofdate: str, version: str) -> None:
+    st.subheader("Nouvel ajustement")
+    st.caption("* Colonnes obligatoires · les cellules optionnelles vides valent 0 €")
+    initial_rows = pd.DataFrame([{
+        "ldpImpactLcrReglementaire": None,
+        "ldpImpactLcrGestion": None,
+        "impactLcrInflow": 0.0,
+        "impactLcrOutflow": 0.0,
+        "impactLcrAsset": 0.0,
+        "impactLcrAssetCash": 0.0,
+    }])
+    with st.form("adjustment_form"):
+        edited_rows = st.data_editor(
+            initial_rows,
+            num_rows="dynamic",
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "ldpImpactLcrReglementaire": st.column_config.NumberColumn("LCR réglementaire *", required=True, format="%.2f €"),
+                "ldpImpactLcrGestion": st.column_config.NumberColumn("LCR gestion *", required=True, format="%.2f €"),
+                "impactLcrInflow": st.column_config.NumberColumn("Inflow · Optionnel", format="%.2f €"),
+                "impactLcrOutflow": st.column_config.NumberColumn("Outflow · Optionnel", format="%.2f €"),
+                "impactLcrAsset": st.column_config.NumberColumn("Asset · Optionnel", format="%.2f €"),
+                "impactLcrAssetCash": st.column_config.NumberColumn("Asset Cash · Optionnel", format="%.2f €"),
+            },
+        )
+        confirmed = st.checkbox("Je confirme l'enregistrement de toutes ces lignes")
+        submitted = st.form_submit_button("Enregistrer l'ajustement", type="primary")
+
+    if not submitted:
+        return
+    if not confirmed:
+        st.error("Confirmez l'enregistrement avant de continuer.")
+        return
+    if len(edited_rows) > 100:
+        st.error("Un ajustement ne peut pas dépasser 100 lignes.")
+        return
+    try:
+        rows = edited_rows.where(pd.notna(edited_rows), None).to_dict("records")
+        result = save_adjustments(asofdate, version, rows)
+        load_lcr_summary.clear()
+        load_registry.clear()
+        st.success(
+            f"Ajustement {result['adjustmentId']} enregistré avec "
+            f"{result['lineCount']} ligne(s)."
+        )
+    except requests.HTTPError as error:
+        st.error(error.response.json().get("error", "Requête invalide."))
+
+
+def show_create_page() -> None:
+    st.header("Créer un ajustement")
+    asofdate = st.selectbox(
+        "Date d'arrêté", load_asofdates(), index=None,
         placeholder="Sélectionnez une date",
     )
-    if selected_asofdate:
-        versions = load_versions(selected_asofdate)
-        selected_version = st.selectbox(
-            "Version",
-            options=versions,
-            index=None,
-            placeholder="Sélectionnez une version",
+    if not asofdate:
+        return
+    version = st.selectbox(
+        "Version", load_versions(asofdate), index=None,
+        placeholder="Sélectionnez une version",
+    )
+    if version:
+        show_summary(asofdate, version)
+        show_adjustment_editor(asofdate, version)
+
+
+def show_registry_page() -> None:
+    st.header("Registre des ajustements")
+    blocks = load_registry()
+    if not blocks:
+        st.info("Aucun ajustement enregistré.")
+        return
+
+    dates = sorted({block["asofdate"] for block in blocks}, reverse=True)
+    selected_date = st.selectbox("Filtrer par date", ["Toutes", *dates])
+    filtered = [
+        block for block in blocks
+        if selected_date == "Toutes" or block["asofdate"] == selected_date
+    ]
+
+    for block in filtered:
+        status = "Actif" if block["status"] == "ACTIVE" else "Supprimé"
+        title = (
+            f"{block['asofdate']} · {block['asofdateflowVersion']} · "
+            f"{status} · {len(block['lines'])} ligne(s)"
         )
-        if selected_version:
-            summary = load_lcr_summary(selected_asofdate, selected_version)
-            st.subheader("Résumé LCR")
-            total = summary["total"]
-            columns = st.columns(4)
-            columns[0].metric("Montant 0D", format_euro(total["amount0d"]))
-            columns[1].metric("Montant 30D", format_euro(total["amount30d"]))
-            columns[2].metric("LCR réglementaire", format_euro(total["lcrReglementaire"]))
-            columns[3].metric("LCR gestion", format_euro(total["lcrGestion"]))
-
-            st.dataframe(
-                summary["rows"],
-                column_order=(
-                    "productLine", "amount0d", "amount30d",
-                    "lcrReglementaire", "lcrGestion",
-                ),
-                column_config={
-                    "productLine": "Product Line",
-                    "amount0d": st.column_config.NumberColumn("Montant 0D", format="%.2f €"),
-                    "amount30d": st.column_config.NumberColumn("Montant 30D", format="%.2f €"),
-                    "lcrReglementaire": st.column_config.NumberColumn("LCR réglementaire", format="%.2f €"),
-                    "lcrGestion": st.column_config.NumberColumn("LCR gestion", format="%.2f €"),
-                },
-                hide_index=True,
-                use_container_width=True,
-            )
-
-            st.subheader("Nouvel ajustement")
-            st.caption("* Colonnes obligatoires · les cellules optionnelles vides valent 0 €")
-            initial_rows = pd.DataFrame([
-                {
-                    "ldpImpactLcrReglementaire": None,
-                    "ldpImpactLcrGestion": None,
-                    "impactLcrInflow": 0.0,
-                    "impactLcrOutflow": 0.0,
-                    "impactLcrAsset": 0.0,
-                    "impactLcrAssetCash": 0.0,
-                }
-            ])
-            with st.form("adjustment_form"):
-                edited_rows = st.data_editor(
-                    initial_rows,
-                    num_rows="dynamic",
-                    hide_index=True,
-                    use_container_width=True,
-                    column_config={
-                        "ldpImpactLcrReglementaire": st.column_config.NumberColumn(
-                            "LCR réglementaire *", required=True, format="%.2f €"
-                        ),
-                        "ldpImpactLcrGestion": st.column_config.NumberColumn(
-                            "LCR gestion *", required=True, format="%.2f €"
-                        ),
-                        "impactLcrInflow": st.column_config.NumberColumn("Inflow · Optionnel", format="%.2f €"),
-                        "impactLcrOutflow": st.column_config.NumberColumn("Outflow · Optionnel", format="%.2f €"),
-                        "impactLcrAsset": st.column_config.NumberColumn("Asset · Optionnel", format="%.2f €"),
-                        "impactLcrAssetCash": st.column_config.NumberColumn("Asset Cash · Optionnel", format="%.2f €"),
-                    },
+        with st.expander(title):
+            st.code(block["adjustmentId"], language=None)
+            st.caption(f"Créé le {block['createdAt']} par {block['createdBy']}")
+            if block["status"] == "DELETED":
+                st.info(
+                    f"Supprimé le {block['deletedAt']} par {block['deletedBy']}. "
+                    "Les anciennes lignes ne sont pas conservées."
                 )
-                confirmed = st.checkbox("Je confirme l'enregistrement de toutes ces lignes")
-                submitted = st.form_submit_button("Enregistrer l'ajustement", type="primary")
+                continue
 
-            if submitted:
+            st.dataframe(block["lines"], hide_index=True, use_container_width=True)
+            confirmed = st.checkbox(
+                "Confirmer la suppression de toutes les lignes",
+                key=f"confirm-{block['adjustmentId']}",
+            )
+            if st.button(
+                "Supprimer l'ajustement",
+                key=f"delete-{block['adjustmentId']}",
+                type="secondary",
+            ):
                 if not confirmed:
-                    st.error("Confirmez l'enregistrement avant de continuer.")
-                elif len(edited_rows) > 100:
-                    st.error("Un ajustement ne peut pas dépasser 100 lignes.")
+                    st.error("Cochez la confirmation avant la suppression.")
                 else:
                     try:
-                        rows = edited_rows.where(pd.notna(edited_rows), None).to_dict("records")
-                        result = save_adjustments(selected_asofdate, selected_version, rows)
+                        delete_adjustment(block["adjustmentId"])
+                        load_registry.clear()
                         load_lcr_summary.clear()
-                        st.success(
-                            f"Ajustement {result['adjustmentId']} enregistré "
-                            f"avec {result['lineCount']} ligne(s)."
-                        )
+                        st.success("Toutes les lignes de l'ajustement ont été supprimées.")
+                        st.rerun()
                     except requests.HTTPError as error:
-                        message = error.response.json().get("error", "Requête invalide.")
-                        st.error(message)
+                        st.error(error.response.json().get("error", "Suppression impossible."))
+
+
+st.set_page_config(page_title="LCR Adjustments", page_icon="🏦", layout="wide")
+st.title("LCR Adjustments")
+st.caption("Application Flask + Streamlit")
+
+page = st.sidebar.radio("Menu", ("Créer un ajustement", "Registre"))
+try:
+    health = requests.get(f"{API_URL}/api/health", timeout=3)
+    health.raise_for_status()
+    st.sidebar.success("API Flask connectée")
+    show_create_page() if page == "Créer un ajustement" else show_registry_page()
 except requests.RequestException:
-    st.error("Impossible de charger le contexte LCR depuis PostgreSQL.")
+    st.error("API Flask indisponible. Démarrez-la avec `python -m api.app`.")
