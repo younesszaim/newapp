@@ -260,15 +260,22 @@ def _show_active_registry_block(block: dict) -> None:
             st.error(error.response.json().get("error", "Suppression impossible."))
 
 
-st.set_page_config(page_title="LCR Adjustments", page_icon="🏦", layout="wide")
-st.title("LCR Adjustments")
-st.caption("Application Flask + Streamlit")
+def main() -> None:
+    """Configure la page, vérifie Flask et affiche la page choisie."""
 
-page = st.sidebar.radio("Menu", ("Créer un ajustement", "Registre"))
-try:
-    health = requests.get(f"{API_URL}/api/health", timeout=3)
-    health.raise_for_status()
-    st.sidebar.success("API Flask connectée")
-    show_create_page() if page == "Créer un ajustement" else show_registry_page()
-except requests.RequestException:
-    st.error("API Flask indisponible. Démarrez-la avec `python -m api.app`.")
+    st.set_page_config(page_title="LCR Adjustments", page_icon="🏦", layout="wide")
+    st.title("LCR Adjustments")
+    st.caption("Application Flask + Streamlit")
+
+    page = st.sidebar.radio("Menu", ("Créer un ajustement", "Registre"))
+    try:
+        health = requests.get(f"{API_URL}/api/health", timeout=3)
+        health.raise_for_status()
+        st.sidebar.success("API Flask connectée")
+        show_create_page() if page == "Créer un ajustement" else show_registry_page()
+    except requests.RequestException:
+        st.error("API Flask indisponible. Démarrez-la avec `python -m api.app`.")
+
+
+if __name__ == "__main__":
+    main()

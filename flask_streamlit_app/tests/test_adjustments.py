@@ -7,6 +7,8 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 from api.adjustment_service import (
+    _finite_number,
+    _generate_trade_no,
     create_adjustment_block,
     delete_adjustment_block,
     get_adjustment_registry,
@@ -19,6 +21,33 @@ class AdjustmentTest(TestCase):
     def test_required_amounts_are_enforced(self) -> None:
         with self.assertRaisesRegex(ValueError, "obligatoires"):
             validate_adjustment_lines([{"ldpImpactLcrReglementaire": 100}])
+
+    def test_batch_must_be_a_non_empty_list(self) -> None:
+        for invalid_value in (None, {}, []):
+            with self.subTest(value=invalid_value):
+                with self.assertRaisesRegex(ValueError, "1 et 100"):
+                    validate_adjustment_lines(invalid_value)
+
+    def test_amounts_must_be_finite_numbers(self) -> None:
+        for invalid_value in ("not-a-number", float("inf"), float("nan")):
+            with self.subTest(value=invalid_value):
+                with self.assertRaises(ValueError):
+                    _finite_number(invalid_value)
+
+    def test_finite_number_converts_a_string(self) -> None:
+        self.assertEqual(_finite_number("12.5"), 12.5)
+
+    @patch("api.adjustment_service.secrets.randbelow", side_effect=[9, 19])
+    @patch("api.adjustment_service.trade_no_exists", side_effect=[True, False])
+    def test_trade_number_is_retried_after_collision(
+        self,
+        trade_exists: MagicMock,
+        _randbelow: MagicMock,
+    ) -> None:
+        result = _generate_trade_no(MagicMock())
+
+        self.assertEqual(result, 20)
+        self.assertEqual(trade_exists.call_count, 2)
 
     def test_optional_amounts_default_to_zero(self) -> None:
         lines = validate_adjustment_lines([
@@ -126,6 +155,20 @@ class AdjustmentTest(TestCase):
         delete_trades.assert_called_once_with(connection, ["bi-1", "bi-2"])
         mark_deleted.assert_called_once_with(connection, adjustment_id, "local_user")
 
+    @patch("api.adjustment_service.get_registry_block_for_update", return_value=None)
+    def test_delete_rejects_unknown_adjustment(self, _get_block: MagicMock) -> None:
+        with self.assertRaises(LookupError):
+            delete_adjustment_block(MagicMock(), UUID(int=0))
+
+    @patch("api.adjustment_service.get_registry_block_for_update")
+    def test_delete_rejects_already_deleted_adjustment(
+        self, get_block: MagicMock
+    ) -> None:
+        get_block.return_value = {"status": "DELETED", "bi_ids": []}
+
+        with self.assertRaisesRegex(ValueError, "déjà supprimé"):
+            delete_adjustment_block(MagicMock(), UUID(int=0))
+
     @patch("api.adjustment_routes.delete_adjustment_block")
     @patch("api.adjustment_routes.database_connection")
     def test_delete_route_returns_204(
@@ -139,3 +182,35 @@ class AdjustmentTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 204)
+
+    def test_post_rejects_missing_required_amount(self) -> None:
+        response = create_app().test_client().post(
+            "/api/adjustments",
+            json={
+                "asofdate": "2026-10-05",
+                "asofdateflowVersion": "2026-10-06T15:30:00",
+                "adjustments": [{"ldpImpactLcrReglementaire": 100}],
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    @patch("api.adjustment_routes.get_adjustment_registry")
+    @patch("api.adjustment_routes.database_connection")
+    def test_get_route_returns_registry_blocks(
+        self,
+        database_connection: MagicMock,
+        get_registry: MagicMock,
+    ) -> None:
+        database_connection.return_value.__enter__.return_value = MagicMock()
+        get_registry.return_value = [{"adjustmentId": "id-1", "lines": []}]
+
+        response = create_app().test_client().get("/api/adjustments")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json[0]["adjustmentId"], "id-1")
+
+    def test_delete_route_rejects_invalid_uuid(self) -> None:
+        response = create_app().test_client().delete("/api/adjustments/not-an-uuid")
+
+        self.assertEqual(response.status_code, 400)
