@@ -6,6 +6,11 @@ Cette version reconstruit progressivement l'application LCR existante avec :
 - Streamlit pour l'interface utilisateur ;
 - PostgreSQL avec `psycopg2` pour conserver la même base de données.
 
+Documentation complémentaire :
+
+- [étapes détaillées de développement](docs/development-steps.md) ;
+- [création SQL du registre des ajustements](sql/create_adjustment_registry.sql).
+
 ## Étape 1 — démarrer le squelette
 
 Depuis le dossier `flask_streamlit_app` :
