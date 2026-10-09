@@ -1,0 +1,305 @@
+# Référence de l'API Flask
+
+Cette API expose les données LCR et le cycle de vie des ajustements manuels.
+Toutes les routes commencent par `/api` et échangent du JSON, sauf la réponse
+vide du `DELETE`.
+
+## Démarrage et Swagger
+
+```bash
+cd flask_streamlit_app
+source .venv/bin/activate
+python -m api.app
+```
+
+- URL de base : `http://127.0.0.1:5000`
+- Swagger UI : `http://127.0.0.1:5000/apidocs`
+- Spécification OpenAPI JSON : `http://127.0.0.1:5000/apispec_1.json`
+
+## Vue d'ensemble
+
+| Méthode | Route | Rôle |
+|---|---|---|
+| `GET` | `/api/health` | Vérifier que Flask répond |
+| `GET` | `/api/asofdates` | Lister les dates d'arrêté |
+| `GET` | `/api/asofdates/{asofdate}/versions` | Lister les versions d'une date |
+| `GET` | `/api/lcr-summary` | Agréger la situation LCR |
+| `GET` | `/api/adjustments` | Consulter le registre |
+| `POST` | `/api/adjustments` | Créer un bloc d'ajustement |
+| `DELETE` | `/api/adjustments/{adjustment_id}` | Supprimer toutes les lignes d'un bloc |
+
+## Format des erreurs
+
+Les erreurs ont toujours une propriété `error` :
+
+```json
+{
+  "error": "La date doit utiliser le format YYYY-MM-DD."
+}
+```
+
+Les erreurs techniques psycopg2 ne sont jamais retournées au client.
+
+---
+
+## GET `/api/health`
+
+Vérifie uniquement que le processus Flask fonctionne. Cette route ne teste pas
+la connexion PostgreSQL.
+
+```bash
+curl http://127.0.0.1:5000/api/health
+```
+
+Réponse `200 OK` :
+
+```json
+{
+  "status": "ok"
+}
+```
+
+---
+
+## GET `/api/asofdates`
+
+Retourne les dates distinctes présentes dans `public.completude_table`, de la
+plus récente à la plus ancienne.
+
+```bash
+curl http://127.0.0.1:5000/api/asofdates
+```
+
+Réponse `200 OK` :
+
+```json
+[
+  "2026-10-05",
+  "2026-10-04"
+]
+```
+
+Réponse `500 Internal Server Error` si PostgreSQL est indisponible :
+
+```json
+{
+  "error": "Impossible de charger les dates d'arrêté."
+}
+```
+
+---
+
+## GET `/api/asofdates/{asofdate}/versions`
+
+Retourne les versions disponibles pour une date. `asofdate` doit respecter le
+format ISO `YYYY-MM-DD`.
+
+```bash
+curl http://127.0.0.1:5000/api/asofdates/2026-10-05/versions
+```
+
+Réponse `200 OK` :
+
+```json
+[
+  "2026-10-06T15:30:00",
+  "2026-10-06T09:00:00"
+]
+```
+
+Réponse `400 Bad Request` pour `/api/asofdates/05-10-2026/versions` :
+
+```json
+{
+  "error": "La date doit utiliser le format YYYY-MM-DD."
+}
+```
+
+---
+
+## GET `/api/lcr-summary`
+
+Agrège les lignes de `public.completude_table` par `product_line` pour un
+contexte précis.
+
+Paramètres de requête :
+
+| Paramètre | Format | Obligatoire | Exemple |
+|---|---|---:|---|
+| `asofdate` | date ISO | oui | `2026-10-05` |
+| `version` | date-heure ISO | oui | `2026-10-06T15:30:00` |
+
+```bash
+curl --get http://127.0.0.1:5000/api/lcr-summary \
+  --data-urlencode "asofdate=2026-10-05" \
+  --data-urlencode "version=2026-10-06T15:30:00"
+```
+
+Réponse `200 OK` :
+
+```json
+{
+  "asofdate": "2026-10-05",
+  "asofdateflowVersion": "2026-10-06T15:30:00",
+  "rows": [
+    {
+      "productLine": "LOAN",
+      "amount0d": 1000000.0,
+      "amount30d": 750000.0,
+      "lcrReglementaire": 250000.0,
+      "lcrGestion": 200000.0
+    }
+  ],
+  "total": {
+    "amount0d": 1000000.0,
+    "amount30d": 750000.0,
+    "lcrReglementaire": 250000.0,
+    "lcrGestion": 200000.0
+  }
+}
+```
+
+Réponse `400 Bad Request` si un paramètre manque ou n'est pas une valeur ISO.
+
+---
+
+## GET `/api/adjustments`
+
+Retourne les blocs actifs et supprimés, triés du dernier événement au plus
+ancien. Pour un bloc actif, `lines` est relu depuis `completude_table` grâce aux
+`bi_id`. Pour un bloc supprimé, `lines` est vide.
+
+```bash
+curl http://127.0.0.1:5000/api/adjustments
+```
+
+Réponse `200 OK` abrégée :
+
+```json
+[
+  {
+    "adjustmentId": "a2432f6a-2142-41de-a34b-6ec75625a346",
+    "asofdate": "2026-10-05",
+    "asofdateflowVersion": "2026-10-06T15:30:00",
+    "createdAt": "2026-10-09T09:15:00",
+    "createdBy": "local_user",
+    "status": "ACTIVE",
+    "deletedAt": null,
+    "deletedBy": null,
+    "lastEventAt": "2026-10-09T09:15:00",
+    "lines": [
+      {
+        "biId": "824a1434-8a25-4588-a91c-406ea02b4aef",
+        "tradeNo": 123456789,
+        "ldpImpactLcrReglementaire": 5000000.0,
+        "ldpImpactLcrGestion": 250000.0,
+        "impactLcrInflow": 0.0,
+        "impactLcrOutflow": 0.0,
+        "impactLcrAsset": 0.0,
+        "impactLcrAssetCash": 0.0
+      }
+    ]
+  }
+]
+```
+
+---
+
+## POST `/api/adjustments`
+
+Crée de 1 à 100 deals fictifs dans une seule transaction PostgreSQL. Toutes les
+lignes reçoivent le même `adjustment_id`, mais chacune reçoit son propre `bi_id`
+et son propre `TradeNo`.
+
+### Corps JSON
+
+| Propriété | Type | Obligatoire | Règle |
+|---|---|---:|---|
+| `asofdate` | chaîne | oui | format `YYYY-MM-DD` |
+| `asofdateflowVersion` | chaîne | oui | date-heure ISO |
+| `adjustments` | tableau | oui | de 1 à 100 lignes |
+| `ldpImpactLcrReglementaire` | nombre | oui | nombre fini |
+| `ldpImpactLcrGestion` | nombre | oui | nombre fini |
+| `impactLcrInflow` | nombre | non | `0` par défaut |
+| `impactLcrOutflow` | nombre | non | `0` par défaut |
+| `impactLcrAsset` | nombre | non | `0` par défaut |
+| `impactLcrAssetCash` | nombre | non | `0` par défaut |
+
+```bash
+curl --request POST http://127.0.0.1:5000/api/adjustments \
+  --header "Content-Type: application/json" \
+  --data '{
+    "asofdate": "2026-10-05",
+    "asofdateflowVersion": "2026-10-06T15:30:00",
+    "adjustments": [
+      {
+        "ldpImpactLcrReglementaire": 5000000,
+        "ldpImpactLcrGestion": 250000,
+        "impactLcrInflow": 100000
+      },
+      {
+        "ldpImpactLcrReglementaire": -1000000,
+        "ldpImpactLcrGestion": -500000,
+        "impactLcrAsset": 200000
+      }
+    ]
+  }'
+```
+
+Réponse `201 Created` :
+
+```json
+{
+  "adjustmentId": "a2432f6a-2142-41de-a34b-6ec75625a346",
+  "lineCount": 2,
+  "status": "ACTIVE"
+}
+```
+
+Si une seule insertion échoue, toute la transaction est annulée : aucun deal
+du bloc et aucune entrée de registre ne sont conservés.
+
+Réponse `400 Bad Request` typique :
+
+```json
+{
+  "error": "Toutes les colonnes obligatoires doivent être renseignées."
+}
+```
+
+---
+
+## DELETE `/api/adjustments/{adjustment_id}`
+
+Supprime toutes les lignes `completude_table` associées au bloc, puis marque
+l'entrée du registre `DELETED`. Le registre conserve uniquement les métadonnées
+d'audit ; la liste des `bi_id` est vidée.
+
+```bash
+curl --request DELETE \
+  http://127.0.0.1:5000/api/adjustments/a2432f6a-2142-41de-a34b-6ec75625a346
+```
+
+Réponse réussie : `204 No Content`, sans corps JSON.
+
+| Code | Signification |
+|---:|---|
+| `400` | `adjustment_id` n'est pas un UUID |
+| `404` | aucun ajustement ne possède cet identifiant |
+| `409` | ajustement déjà supprimé ou lignes actives incomplètes |
+| `500` | erreur PostgreSQL masquée au client |
+
+## Ordre d'appel recommandé
+
+```text
+GET /api/asofdates
+    → GET /api/asofdates/{asofdate}/versions
+        → GET /api/lcr-summary
+            → POST /api/adjustments
+                → GET /api/lcr-summary
+                → GET /api/adjustments
+                    → DELETE /api/adjustments/{adjustment_id}
+```
+
+Après un `POST` ou un `DELETE`, rechargez le résumé LCR et le registre afin
+d'afficher les données actualisées.

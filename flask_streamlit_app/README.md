@@ -9,6 +9,7 @@ Cette version reconstruit progressivement l'application LCR existante avec :
 Documentation complémentaire :
 
 - [étapes détaillées de développement](docs/development-steps.md) ;
+- [référence complète des routes API](docs/api-reference.md) ;
 - [guide pédagogique des tests](docs/testing-guide.md) ;
 - [création SQL du registre des ajustements](sql/create_adjustment_registry.sql).
 
