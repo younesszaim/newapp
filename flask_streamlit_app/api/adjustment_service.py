@@ -15,7 +15,12 @@ from api.adjustment_repository import (
     mark_registry_block_deleted,
     trade_no_exists,
 )
-from api.config import ADJUSTMENT_DEFAULTS
+from api.config import ADJUSTMENT_DEFAULTS, get_settings
+from api.errors import (
+    AdjustmentConflictError,
+    AdjustmentNotFoundError,
+    TradeNumberGenerationError,
+)
 from api.adjustment_models import (
     AdjustmentBatchRequest,
     AdjustmentCreationResponse,
@@ -29,6 +34,7 @@ def create_adjustment_block(
     """Insère toutes les lignes, puis leur unique en-tête de registre."""
 
     adjustment_id = uuid4()
+    settings = get_settings()
     bi_ids = []
     for amounts in request.adjustments:
         bi_id = str(uuid4())
@@ -49,7 +55,7 @@ def create_adjustment_block(
         bi_ids=bi_ids,
         asofdate=request.asofdate,
         version=request.version,
-        created_by="local_user",
+        created_by=settings.created_by,
     )
     return AdjustmentCreationResponse(
         adjustment_id=adjustment_id,
@@ -71,14 +77,20 @@ def delete_adjustment_block(
 
     block = get_registry_block_for_update(connection, adjustment_id)
     if block is None:
-        raise LookupError("Ajustement introuvable.")
+        raise AdjustmentNotFoundError("Ajustement introuvable.")
     if block["status"] == "DELETED":
-        raise ValueError("Cet ajustement est déjà supprimé.")
+        raise AdjustmentConflictError("Cet ajustement est déjà supprimé.")
 
     bi_ids = block["bi_ids"]
     if not bi_ids or delete_adjustment_trades(connection, bi_ids) != len(bi_ids):
-        raise ValueError("Une ou plusieurs lignes de l'ajustement sont introuvables.")
-    mark_registry_block_deleted(connection, adjustment_id, "local_user")
+        raise AdjustmentConflictError(
+            "Une ou plusieurs lignes de l'ajustement sont introuvables."
+        )
+    mark_registry_block_deleted(
+        connection,
+        adjustment_id,
+        get_settings().created_by,
+    )
 
 
 def _serialize_block(block: dict) -> dict:
@@ -115,4 +127,4 @@ def _generate_trade_no(connection: PostgreSQLConnection) -> int:
         trade_no = secrets.randbelow(9_000_000_000_000_000_000 - 1) + 1
         if not trade_no_exists(connection, trade_no):
             return trade_no
-    raise RuntimeError("Impossible de générer un TradeNo unique.")
+    raise TradeNumberGenerationError("Impossible de générer un TradeNo unique.")

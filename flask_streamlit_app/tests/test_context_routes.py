@@ -4,6 +4,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 from api.app import create_app
+from api.errors import ConfigurationError
 
 
 class ContextRoutesTest(TestCase):
@@ -25,7 +26,10 @@ class ContextRoutesTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, ["2026-10-05", "2026-10-04"])
 
-    @patch("api.context_routes.database_connection", side_effect=RuntimeError)
+    @patch(
+        "api.context_routes.database_connection",
+        side_effect=ConfigurationError("DATABASE_URL absente"),
+    )
     def test_missing_database_configuration_returns_500(
         self,
         _database_connection: MagicMock,

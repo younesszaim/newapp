@@ -1,15 +1,14 @@
 """Connexion PostgreSQL partagée par les routes Flask."""
 
-import os
 from contextlib import contextmanager
 from collections.abc import Iterator
 
 import psycopg2
-from dotenv import load_dotenv
 from psycopg2.extensions import connection as PostgreSQLConnection
 from psycopg2.extras import RealDictCursor
 
-load_dotenv()
+from api.config import get_settings
+from api.errors import ConfigurationError
 
 
 @contextmanager
@@ -21,13 +20,13 @@ def database_connection() -> Iterator[PostgreSQLConnection]:
             cursor = connection.cursor()
     """
 
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL n'est pas configurée dans .env.")
+    settings = get_settings()
+    if not settings.database_url:
+        raise ConfigurationError("DATABASE_URL n'est pas configurée dans .env.")
 
     with psycopg2.connect(
-        database_url,
+        settings.database_url,
         cursor_factory=RealDictCursor,
-        connect_timeout=10,
+        connect_timeout=settings.database_connect_timeout,
     ) as connection:
         yield connection

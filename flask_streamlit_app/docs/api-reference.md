@@ -38,7 +38,14 @@ Les erreurs ont toujours une propriété `error` :
 }
 ```
 
-Les erreurs techniques psycopg2 ne sont jamais retournées au client.
+Les erreurs techniques psycopg2 ne sont jamais retournées au client. Une erreur
+de base non prévue produit uniquement :
+
+```json
+{
+  "error": "Une erreur PostgreSQL est survenue."
+}
+```
 
 ---
 

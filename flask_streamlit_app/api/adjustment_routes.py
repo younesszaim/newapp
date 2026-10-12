@@ -3,7 +3,6 @@
 from uuid import UUID
 
 from flask import Blueprint, jsonify, request
-from psycopg2 import DatabaseError
 from pydantic import ValidationError
 
 from api.adjustment_models import AdjustmentBatchRequest
@@ -29,11 +28,8 @@ def list_adjustments():
         description: Base PostgreSQL indisponible.
     """
 
-    try:
-        with database_connection() as connection:
-            return jsonify(get_adjustment_registry(connection))
-    except (DatabaseError, RuntimeError):
-        return jsonify(error="Impossible de charger le registre."), 500
+    with database_connection() as connection:
+        return jsonify(get_adjustment_registry(connection))
 
 
 @adjustment_blueprint.post("/adjustments")
@@ -74,12 +70,9 @@ def create_adjustment():
     except ValidationError as error:
         return jsonify(error=_validation_message(error)), 400
 
-    try:
-        with database_connection() as connection:
-            result = create_adjustment_block(connection, adjustment_request)
-        return jsonify(result.model_dump(mode="json", by_alias=True)), 201
-    except (DatabaseError, RuntimeError):
-        return jsonify(error="Impossible d'enregistrer l'ajustement."), 500
+    with database_connection() as connection:
+        result = create_adjustment_block(connection, adjustment_request)
+    return jsonify(result.model_dump(mode="json", by_alias=True)), 201
 
 
 def _validation_message(error: ValidationError) -> str:
@@ -124,13 +117,6 @@ def delete_adjustment(adjustment_id: str):
     except ValueError:
         return jsonify(error="L'adjustment_id doit être un UUID valide."), 400
 
-    try:
-        with database_connection() as connection:
-            delete_adjustment_block(connection, parsed_id)
-        return "", 204
-    except LookupError as error:
-        return jsonify(error=str(error)), 404
-    except ValueError as error:
-        return jsonify(error=str(error)), 409
-    except (DatabaseError, RuntimeError):
-        return jsonify(error="Impossible de supprimer l'ajustement."), 500
+    with database_connection() as connection:
+        delete_adjustment_block(connection, parsed_id)
+    return "", 204

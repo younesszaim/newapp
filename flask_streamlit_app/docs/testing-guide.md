@@ -41,7 +41,9 @@ rend les exemples plus lisibles qu'un mock générique.
 | Module testé | Fonctions couvertes | Fichier d'exemples |
 |---|---|---|
 | `api.app` | `create_app`, health check | `tests/test_database_and_app.py` |
+| `api.config` | valeurs par défaut et configuration typée | `tests/test_database_and_app.py` |
 | `api.database` | `database_connection` avec et sans URL | `tests/test_database_and_app.py` |
+| `api.errors` | erreurs applicatives et masquage des erreurs PostgreSQL | `tests/test_database_and_app.py` |
 | `api.context_repository` | `list_asofdates`, `list_versions` | `tests/test_context_repository.py` |
 | `api.context_routes` | succès, date invalide, erreur de configuration | `tests/test_context_routes.py` |
 | `api.lcr_repository` | `get_lcr_summary_rows` et paramètres SQL | `tests/test_lcr_repository.py` |

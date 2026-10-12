@@ -19,6 +19,7 @@ from api.adjustment_service import (
     get_adjustment_registry,
 )
 from api.app import create_app
+from api.errors import AdjustmentConflictError, AdjustmentNotFoundError
 
 
 class AdjustmentTest(TestCase):
@@ -186,7 +187,7 @@ class AdjustmentTest(TestCase):
 
     @patch("api.adjustment_service.get_registry_block_for_update", return_value=None)
     def test_delete_rejects_unknown_adjustment(self, _get_block: MagicMock) -> None:
-        with self.assertRaises(LookupError):
+        with self.assertRaises(AdjustmentNotFoundError):
             delete_adjustment_block(MagicMock(), UUID(int=0))
 
     @patch("api.adjustment_service.get_registry_block_for_update")
@@ -195,7 +196,7 @@ class AdjustmentTest(TestCase):
     ) -> None:
         get_block.return_value = {"status": "DELETED", "bi_ids": []}
 
-        with self.assertRaisesRegex(ValueError, "déjà supprimé"):
+        with self.assertRaisesRegex(AdjustmentConflictError, "déjà supprimé"):
             delete_adjustment_block(MagicMock(), UUID(int=0))
 
     @patch("api.adjustment_routes.delete_adjustment_block")

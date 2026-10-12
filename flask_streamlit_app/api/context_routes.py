@@ -3,7 +3,6 @@
 from datetime import date
 
 from flask import Blueprint, jsonify
-from psycopg2 import DatabaseError
 
 from api.context_repository import list_asofdates, list_versions
 from api.database import database_connection
@@ -30,11 +29,8 @@ def get_asofdates():
         description: Configuration absente ou base indisponible.
     """
 
-    try:
-        with database_connection() as connection:
-            return jsonify(list_asofdates(connection))
-    except (DatabaseError, RuntimeError):
-        return jsonify(error="Impossible de charger les dates d'arrêté."), 500
+    with database_connection() as connection:
+        return jsonify(list_asofdates(connection))
 
 
 @context_blueprint.get("/asofdates/<asofdate>/versions")
@@ -70,8 +66,5 @@ def get_versions(asofdate: str):
     except ValueError:
         return jsonify(error="La date doit utiliser le format YYYY-MM-DD."), 400
 
-    try:
-        with database_connection() as connection:
-            return jsonify(list_versions(connection, parsed_asofdate))
-    except (DatabaseError, RuntimeError):
-        return jsonify(error="Impossible de charger les versions."), 500
+    with database_connection() as connection:
+        return jsonify(list_versions(connection, parsed_asofdate))

@@ -98,6 +98,17 @@ Pydantic est utilisé à la frontière HTTP, car les données JSON doivent être
 analysées et validées. Une `dataclass` serait préférable pour un objet métier
 interne déjà fiable, mais elle ne remplace pas cette validation d'entrée.
 
+## 10. Configuration et erreurs centralisées
+
+- `Settings` charge et valide `DATABASE_URL`, `CREATED_BY` et le délai de
+  connexion depuis `.env` ;
+- `get_settings()` met la configuration en cache ;
+- les services utilisent des exceptions métier explicites pour les erreurs
+  `404`, `409` et `500` ;
+- Flask transforme ces exceptions dans un format JSON commun ;
+- un gestionnaire PostgreSQL masque les détails techniques au client ;
+- les routes ne répètent plus les mêmes blocs `try/except`.
+
 ## Préparer la base
 
 Exécuter [create_adjustment_registry.sql](../sql/create_adjustment_registry.sql)

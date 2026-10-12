@@ -3,7 +3,6 @@
 from datetime import date, datetime
 
 from flask import Blueprint, jsonify, request
-from psycopg2 import DatabaseError
 
 from api.database import database_connection
 from api.lcr_service import build_lcr_summary
@@ -45,8 +44,5 @@ def get_lcr_summary():
     except (KeyError, ValueError):
         return jsonify(error="Les paramètres asofdate et version sont invalides."), 400
 
-    try:
-        with database_connection() as connection:
-            return jsonify(build_lcr_summary(connection, asofdate, version))
-    except (DatabaseError, RuntimeError):
-        return jsonify(error="Impossible de charger le résumé LCR."), 500
+    with database_connection() as connection:
+        return jsonify(build_lcr_summary(connection, asofdate, version))
