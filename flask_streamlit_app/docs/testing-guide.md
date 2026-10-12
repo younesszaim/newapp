@@ -48,7 +48,8 @@ rend les exemples plus lisibles qu'un mock générique.
 | `api.lcr_service` | `build_lcr_summary` et calcul des totaux | `tests/test_lcr.py` |
 | `api.lcr_routes` | succès et paramètres manquants | `tests/test_lcr.py` |
 | `api.adjustment_repository` | toutes les lectures, insertions, mises à jour et suppressions | `tests/test_adjustment_repository.py` |
-| `api.adjustment_service` | validation, nombres, TradeNo, création, registre et suppression | `tests/test_adjustments.py` |
+| `api.adjustment_models` | champs requis, `Decimal`, alias, valeurs par défaut et champs inconnus | `tests/test_adjustments.py` |
+| `api.adjustment_service` | TradeNo, création, registre et suppression | `tests/test_adjustments.py` |
 | `api.adjustment_routes` | GET, POST, DELETE et entrées invalides | `tests/test_adjustments.py` |
 | `streamlit_app` | HTTP, cache, formatage, pages, grille, registre et navigation | `tests/test_streamlit_app.py` |
 

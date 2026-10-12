@@ -1,16 +1,16 @@
 """Routes Flask de création des ajustements."""
 
-from datetime import date, datetime
 from uuid import UUID
 
 from flask import Blueprint, jsonify, request
 from psycopg2 import DatabaseError
+from pydantic import ValidationError
 
+from api.adjustment_models import AdjustmentBatchRequest
 from api.adjustment_service import (
     create_adjustment_block,
     delete_adjustment_block,
     get_adjustment_registry,
-    validate_adjustment_lines,
 )
 from api.database import database_connection
 
@@ -70,18 +70,31 @@ def create_adjustment():
 
     payload = request.get_json(silent=True) or {}
     try:
-        asofdate = date.fromisoformat(payload["asofdate"])
-        version = datetime.fromisoformat(payload["asofdateflowVersion"])
-        lines = validate_adjustment_lines(payload.get("adjustments"))
-    except (KeyError, TypeError, ValueError) as error:
-        return jsonify(error=str(error) or "Requête invalide."), 400
+        adjustment_request = AdjustmentBatchRequest.model_validate(payload)
+    except ValidationError as error:
+        return jsonify(error=_validation_message(error)), 400
 
     try:
         with database_connection() as connection:
-            result = create_adjustment_block(connection, asofdate, version, lines)
-        return jsonify(result), 201
+            result = create_adjustment_block(connection, adjustment_request)
+        return jsonify(result.model_dump(mode="json", by_alias=True)), 201
     except (DatabaseError, RuntimeError):
         return jsonify(error="Impossible d'enregistrer l'ajustement."), 500
+
+
+def _validation_message(error: ValidationError) -> str:
+    """Transforme la première erreur Pydantic en message API lisible."""
+
+    detail = error.errors(include_url=False)[0]
+    field = ".".join(str(part) for part in detail["loc"])
+    error_type = detail["type"]
+    if error_type == "missing":
+        return f"Le champ '{field}' est obligatoire."
+    if error_type == "extra_forbidden":
+        return f"Le champ '{field}' n'est pas autorisé."
+    if error_type in {"too_short", "too_long", "list_type"}:
+        return "Un ajustement doit contenir entre 1 et 100 lignes."
+    return f"La valeur du champ '{field}' est invalide."
 
 
 @adjustment_blueprint.delete("/adjustments/<adjustment_id>")

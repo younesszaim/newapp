@@ -2,6 +2,7 @@ Flask
 flasgger
 pandas
 psycopg2-binary
+pydantic
 python-dotenv
 requests
 streamlit

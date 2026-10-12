@@ -1,10 +1,8 @@
 """Validation et création transactionnelle d'un bloc d'ajustement."""
 
-import math
 import secrets
-from datetime import date, datetime
-from uuid import uuid4
 from uuid import UUID
+from uuid import uuid4
 
 from psycopg2.extensions import connection as PostgreSQLConnection
 
@@ -18,66 +16,45 @@ from api.adjustment_repository import (
     trade_no_exists,
 )
 from api.config import ADJUSTMENT_DEFAULTS
-
-REQUIRED_FIELDS = ("ldpImpactLcrReglementaire", "ldpImpactLcrGestion")
-OPTIONAL_FIELDS = (
-    "impactLcrInflow", "impactLcrOutflow", "impactLcrAsset", "impactLcrAssetCash"
+from api.adjustment_models import (
+    AdjustmentBatchRequest,
+    AdjustmentCreationResponse,
 )
-
-
-def validate_adjustment_lines(lines: object) -> list[dict[str, float]]:
-    """Valide 1 à 100 lignes et convertit les cellules en nombres."""
-
-    if not isinstance(lines, list) or not 1 <= len(lines) <= 100:
-        raise ValueError("Un ajustement doit contenir entre 1 et 100 lignes.")
-
-    validated = []
-    for line in lines:
-        if not isinstance(line, dict):
-            raise ValueError("Chaque ligne doit être un objet JSON.")
-        result = {}
-        for field in REQUIRED_FIELDS:
-            if line.get(field) in (None, ""):
-                raise ValueError("Toutes les colonnes obligatoires doivent être renseignées.")
-            result[field] = _finite_number(line[field])
-        for field in OPTIONAL_FIELDS:
-            result[field] = _finite_number(line.get(field, 0) or 0)
-        validated.append(result)
-    return validated
 
 
 def create_adjustment_block(
     connection: PostgreSQLConnection,
-    asofdate: date,
-    version: datetime,
-    lines: list[dict[str, float]],
-) -> dict:
+    request: AdjustmentBatchRequest,
+) -> AdjustmentCreationResponse:
     """Insère toutes les lignes, puis leur unique en-tête de registre."""
 
     adjustment_id = uuid4()
     bi_ids = []
-    for amounts in lines:
+    for amounts in request.adjustments:
         bi_id = str(uuid4())
         bi_ids.append(bi_id)
         insert_adjustment_trade(
             connection,
             bi_id=bi_id,
             trade_no=_generate_trade_no(connection),
-            asofdate=asofdate,
-            version=version,
+            asofdate=request.asofdate,
+            version=request.version,
             defaults=ADJUSTMENT_DEFAULTS,
-            amounts=amounts,
+            amounts=amounts.model_dump(by_alias=True),
         )
 
     insert_registry_block(
         connection,
         adjustment_id=adjustment_id,
         bi_ids=bi_ids,
-        asofdate=asofdate,
-        version=version,
+        asofdate=request.asofdate,
+        version=request.version,
         created_by="local_user",
     )
-    return {"adjustmentId": str(adjustment_id), "lineCount": len(bi_ids), "status": "ACTIVE"}
+    return AdjustmentCreationResponse(
+        adjustment_id=adjustment_id,
+        line_count=len(bi_ids),
+    )
 
 
 def get_adjustment_registry(connection: PostgreSQLConnection) -> list[dict]:
@@ -131,16 +108,6 @@ def _serialize_block(block: dict) -> dict:
             for line in block["lines"]
         ],
     }
-
-
-def _finite_number(value: object) -> float:
-    try:
-        number = float(value)
-    except (TypeError, ValueError) as error:
-        raise ValueError("Les montants doivent être numériques.") from error
-    if not math.isfinite(number):
-        raise ValueError("Les montants doivent être des nombres finis.")
-    return number
 
 
 def _generate_trade_no(connection: PostgreSQLConnection) -> int:

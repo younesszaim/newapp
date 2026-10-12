@@ -1,6 +1,8 @@
 """Insertions SQL des ajustements manuels."""
 
 from datetime import date, datetime
+from decimal import Decimal
+from collections.abc import Mapping
 from typing import Any
 from uuid import UUID
 
@@ -24,7 +26,7 @@ def insert_adjustment_trade(
     asofdate: date,
     version: datetime,
     defaults: dict[str, Any],
-    amounts: dict[str, float],
+    amounts: Mapping[str, Decimal],
 ) -> None:
     """Insère une ligne fictive dans completude_table."""
 

@@ -84,6 +84,20 @@ Commit : `b04bbb2`
 - détails repliés pour éviter un écran rempli de lignes ;
 - tri par dernier événement.
 
+## 9. Contrats Pydantic pour les ajustements
+
+- `AdjustmentAmounts` valide chaque ligne et conserve les montants en
+  `Decimal` ;
+- `AdjustmentBatchRequest` valide le contexte et la limite de 1 à 100 lignes ;
+- `AdjustmentCreationResponse` garantit la structure de la réponse `201` ;
+- les alias Pydantic conservent le contrat JSON camelCase existant ;
+- les champs inconnus sont refusés afin de détecter immédiatement une faute de
+  frappe côté client.
+
+Pydantic est utilisé à la frontière HTTP, car les données JSON doivent être
+analysées et validées. Une `dataclass` serait préférable pour un objet métier
+interne déjà fiable, mais elle ne remplace pas cette validation d'entrée.
+
 ## Préparer la base
 
 Exécuter [create_adjustment_registry.sql](../sql/create_adjustment_registry.sql)

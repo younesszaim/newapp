@@ -5,37 +5,53 @@ from decimal import Decimal
 from uuid import UUID
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
+from pydantic import ValidationError
 
+from api.adjustment_models import (
+    AdjustmentAmounts,
+    AdjustmentBatchRequest,
+    AdjustmentCreationResponse,
+)
 from api.adjustment_service import (
-    _finite_number,
     _generate_trade_no,
     create_adjustment_block,
     delete_adjustment_block,
     get_adjustment_registry,
-    validate_adjustment_lines,
 )
 from api.app import create_app
 
 
 class AdjustmentTest(TestCase):
     def test_required_amounts_are_enforced(self) -> None:
-        with self.assertRaisesRegex(ValueError, "obligatoires"):
-            validate_adjustment_lines([{"ldpImpactLcrReglementaire": 100}])
+        with self.assertRaises(ValidationError):
+            AdjustmentAmounts.model_validate({"ldpImpactLcrReglementaire": 100})
 
     def test_batch_must_be_a_non_empty_list(self) -> None:
         for invalid_value in (None, {}, []):
             with self.subTest(value=invalid_value):
-                with self.assertRaisesRegex(ValueError, "1 et 100"):
-                    validate_adjustment_lines(invalid_value)
+                with self.assertRaises(ValidationError):
+                    AdjustmentBatchRequest.model_validate({
+                        "asofdate": "2026-10-05",
+                        "asofdateflowVersion": "2026-10-06T15:30:00",
+                        "adjustments": invalid_value,
+                    })
 
     def test_amounts_must_be_finite_numbers(self) -> None:
         for invalid_value in ("not-a-number", float("inf"), float("nan")):
             with self.subTest(value=invalid_value):
                 with self.assertRaises(ValueError):
-                    _finite_number(invalid_value)
+                    AdjustmentAmounts.model_validate({
+                        "ldpImpactLcrReglementaire": invalid_value,
+                        "ldpImpactLcrGestion": 100,
+                    })
 
-    def test_finite_number_converts_a_string(self) -> None:
-        self.assertEqual(_finite_number("12.5"), 12.5)
+    def test_amount_model_converts_a_string_to_decimal(self) -> None:
+        amounts = AdjustmentAmounts.model_validate({
+            "ldpImpactLcrReglementaire": "12.5",
+            "ldpImpactLcrGestion": "100",
+        })
+
+        self.assertEqual(amounts.lcr_reglementaire, Decimal("12.5"))
 
     @patch("api.adjustment_service.secrets.randbelow", side_effect=[9, 19])
     @patch("api.adjustment_service.trade_no_exists", side_effect=[True, False])
@@ -50,11 +66,21 @@ class AdjustmentTest(TestCase):
         self.assertEqual(trade_exists.call_count, 2)
 
     def test_optional_amounts_default_to_zero(self) -> None:
-        lines = validate_adjustment_lines([
-            {"ldpImpactLcrReglementaire": 100, "ldpImpactLcrGestion": 200}
-        ])
+        amounts = AdjustmentAmounts.model_validate({
+            "ldpImpactLcrReglementaire": 100,
+            "ldpImpactLcrGestion": 200,
+            "impactLcrInflow": None,
+        })
 
-        self.assertEqual(lines[0]["impactLcrInflow"], 0)
+        self.assertEqual(amounts.inflow, Decimal("0"))
+
+    def test_unknown_json_field_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            AdjustmentAmounts.model_validate({
+                "ldpImpactLcrReglementaire": 100,
+                "ldpImpactLcrGestion": 200,
+                "unexpectedField": 300,
+            })
 
     @patch("api.adjustment_service.insert_registry_block")
     @patch("api.adjustment_service.insert_adjustment_trade")
@@ -67,18 +93,20 @@ class AdjustmentTest(TestCase):
     ) -> None:
         result = create_adjustment_block(
             MagicMock(),
-            date(2026, 10, 5),
-            datetime(2026, 10, 6, 15, 30),
-            validate_adjustment_lines([
+            AdjustmentBatchRequest.model_validate({
+                "asofdate": "2026-10-05",
+                "asofdateflowVersion": "2026-10-06T15:30:00",
+                "adjustments": [
                 {"ldpImpactLcrReglementaire": 100, "ldpImpactLcrGestion": 200},
                 {"ldpImpactLcrReglementaire": 300, "ldpImpactLcrGestion": 400},
-            ]),
+                ],
+            }),
         )
 
         self.assertEqual(insert_trade.call_count, 2)
         insert_registry.assert_called_once()
         self.assertEqual(len(insert_registry.call_args.kwargs["bi_ids"]), 2)
-        self.assertEqual(result["lineCount"], 2)
+        self.assertEqual(result.line_count, 2)
 
     @patch("api.adjustment_routes.create_adjustment_block")
     @patch("api.adjustment_routes.database_connection")
@@ -88,9 +116,10 @@ class AdjustmentTest(TestCase):
         create_block: MagicMock,
     ) -> None:
         database_connection.return_value.__enter__.return_value = MagicMock()
-        create_block.return_value = {
-            "adjustmentId": "test-id", "lineCount": 1, "status": "ACTIVE"
-        }
+        create_block.return_value = AdjustmentCreationResponse(
+            adjustment_id=UUID("a2432f6a-2142-41de-a34b-6ec75625a346"),
+            line_count=1,
+        )
         response = create_app().test_client().post(
             "/api/adjustments",
             json={
@@ -194,6 +223,7 @@ class AdjustmentTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+        self.assertIn("ldpImpactLcrGestion", response.json["error"])
 
     @patch("api.adjustment_routes.get_adjustment_registry")
     @patch("api.adjustment_routes.database_connection")

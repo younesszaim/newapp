@@ -263,7 +263,7 @@ Réponse `400 Bad Request` typique :
 
 ```json
 {
-  "error": "Toutes les colonnes obligatoires doivent être renseignées."
+  "error": "Le champ 'adjustments.0.ldpImpactLcrGestion' est obligatoire."
 }
 ```
 
