@@ -11,6 +11,7 @@ from api.adjustment_models import (
     AdjustmentAmounts,
     AdjustmentBatchRequest,
     AdjustmentCreationResponse,
+    AdjustmentRegistryBlockResponse,
 )
 from api.adjustment_service import (
     _generate_trade_no,
@@ -161,9 +162,14 @@ class AdjustmentTest(TestCase):
 
         result = get_adjustment_registry(MagicMock())
 
-        self.assertEqual(result[0]["adjustmentId"], str(adjustment_id))
-        self.assertEqual(result[0]["lines"][0]["tradeNo"], 123)
-        self.assertEqual(result[0]["lastEventAt"], "2026-10-08T09:00:00")
+        self.assertIsInstance(result[0], AdjustmentRegistryBlockResponse)
+        self.assertEqual(result[0].adjustment_id, adjustment_id)
+        self.assertEqual(result[0].lines[0].trade_no, 123)
+        self.assertEqual(result[0].last_event_at, datetime(2026, 10, 8, 9, 0))
+        self.assertEqual(result[0].lines[0].lcr_reglementaire, Decimal("100"))
+
+        json_result = result[0].model_dump(mode="json", by_alias=True)
+        self.assertEqual(json_result["lines"][0]["ldpImpactLcrReglementaire"], 100.0)
 
     @patch("api.adjustment_service.mark_registry_block_deleted")
     @patch("api.adjustment_service.delete_adjustment_trades", return_value=2)
@@ -234,12 +240,50 @@ class AdjustmentTest(TestCase):
         get_registry: MagicMock,
     ) -> None:
         database_connection.return_value.__enter__.return_value = MagicMock()
-        get_registry.return_value = [{"adjustmentId": "id-1", "lines": []}]
+        get_registry.return_value = [AdjustmentRegistryBlockResponse(
+            adjustment_id=UUID("a2432f6a-2142-41de-a34b-6ec75625a346"),
+            asofdate=date(2026, 10, 5),
+            version=datetime(2026, 10, 6, 15, 30),
+            created_at=datetime(2026, 10, 8, 9, 0),
+            created_by="local_user",
+            status="ACTIVE",
+            last_event_at=datetime(2026, 10, 8, 9, 0),
+            lines=[],
+        )]
 
         response = create_app().test_client().get("/api/adjustments")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json[0]["adjustmentId"], "id-1")
+        self.assertEqual(
+            response.json[0]["adjustmentId"],
+            "a2432f6a-2142-41de-a34b-6ec75625a346",
+        )
+
+    def test_registry_model_rejects_unknown_status(self) -> None:
+        with self.assertRaises(ValidationError):
+            AdjustmentRegistryBlockResponse(
+                adjustment_id=UUID(int=0),
+                asofdate=date(2026, 10, 5),
+                version=datetime(2026, 10, 6, 15, 30),
+                created_at=datetime(2026, 10, 8, 9, 0),
+                created_by="local_user",
+                status="UNKNOWN",
+                last_event_at=datetime(2026, 10, 8, 9, 0),
+                lines=[],
+            )
+
+    def test_deleted_registry_model_requires_audit_and_no_lines(self) -> None:
+        with self.assertRaisesRegex(ValidationError, "audit"):
+            AdjustmentRegistryBlockResponse(
+                adjustment_id=UUID(int=0),
+                asofdate=date(2026, 10, 5),
+                version=datetime(2026, 10, 6, 15, 30),
+                created_at=datetime(2026, 10, 8, 9, 0),
+                created_by="local_user",
+                status="DELETED",
+                last_event_at=datetime(2026, 10, 9, 10, 0),
+                lines=[],
+            )
 
     def test_delete_route_rejects_invalid_uuid(self) -> None:
         response = create_app().test_client().delete("/api/adjustments/not-an-uuid")

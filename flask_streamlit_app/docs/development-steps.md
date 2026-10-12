@@ -109,6 +109,17 @@ interne déjà fiable, mais elle ne remplace pas cette validation d'entrée.
 - un gestionnaire PostgreSQL masque les détails techniques au client ;
 - les routes ne répètent plus les mêmes blocs `try/except`.
 
+## 11. Modèles Pydantic du registre
+
+- `AdjustmentLineResponse` représente une ligne active issue de
+  `completude_table` ;
+- `AdjustmentRegistryBlockResponse` représente un bloc actif ou supprimé ;
+- les `UUID`, dates, statuts et montants sont typés ;
+- les montants restent en `Decimal` dans Python et sont sérialisés comme nombres
+  JSON ;
+- un validateur garantit qu'un bloc supprimé possède son audit et ne conserve
+  aucune ligne.
+
 ## Préparer la base
 
 Exécuter [create_adjustment_registry.sql](../sql/create_adjustment_registry.sql)

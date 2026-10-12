@@ -29,7 +29,11 @@ def list_adjustments():
     """
 
     with database_connection() as connection:
-        return jsonify(get_adjustment_registry(connection))
+        blocks = get_adjustment_registry(connection)
+    return jsonify([
+        block.model_dump(mode="json", by_alias=True)
+        for block in blocks
+    ])
 
 
 @adjustment_blueprint.post("/adjustments")
