@@ -15,6 +15,7 @@ from api.adjustment_repository import (
     mark_registry_block_deleted,
     trade_no_exists,
 )
+from api.adjustment_records import RegistryBlockRecord
 from api.config import ADJUSTMENT_DEFAULTS, get_settings
 from api.errors import (
     AdjustmentConflictError,
@@ -82,10 +83,10 @@ def delete_adjustment_block(
     block = get_registry_block_for_update(connection, adjustment_id)
     if block is None:
         raise AdjustmentNotFoundError("Ajustement introuvable.")
-    if block["status"] == "DELETED":
+    if block.status == "DELETED":
         raise AdjustmentConflictError("Cet ajustement est déjà supprimé.")
 
-    bi_ids = block["bi_ids"]
+    bi_ids = list(block.bi_ids)
     if not bi_ids or delete_adjustment_trades(connection, bi_ids) != len(bi_ids):
         raise AdjustmentConflictError(
             "Une ou plusieurs lignes de l'ajustement sont introuvables."
@@ -97,32 +98,32 @@ def delete_adjustment_block(
     )
 
 
-def _serialize_block(block: dict) -> AdjustmentRegistryBlockResponse:
+def _serialize_block(block: RegistryBlockRecord) -> AdjustmentRegistryBlockResponse:
     """Convertit une ligne SQL en bloc de registre Pydantic."""
 
     lines = [
         AdjustmentLineResponse(
-            bi_id=line["bi_id"],
-            trade_no=line["tradeno"],
-            lcr_reglementaire=line["ldp_impact_lcr_reglementaire"],
-            lcr_gestion=line["ldp_impact_lcr_gestion"],
-            inflow=line["impact_lcr_inflow"],
-            outflow=line["impact_lcr_outflow"],
-            asset=line["impact_lcr_asset"],
-            asset_cash=line["impact_lcr_asset_cash"],
+            bi_id=line.bi_id,
+            trade_no=line.trade_no,
+            lcr_reglementaire=line.lcr_reglementaire,
+            lcr_gestion=line.lcr_gestion,
+            inflow=line.inflow,
+            outflow=line.outflow,
+            asset=line.asset,
+            asset_cash=line.asset_cash,
         )
-        for line in block["lines"]
+        for line in block.lines
     ]
     return AdjustmentRegistryBlockResponse(
-        adjustment_id=block["adjustment_id"],
-        asofdate=block["asofdate"],
-        version=block["asofdateflow_version"],
-        created_at=block["created_at"],
-        created_by=block["created_by"],
-        status=block["status"],
-        deleted_at=block["deleted_at"],
-        deleted_by=block["deleted_by"],
-        last_event_at=block["deleted_at"] or block["created_at"],
+        adjustment_id=block.adjustment_id,
+        asofdate=block.asofdate,
+        version=block.version,
+        created_at=block.created_at,
+        created_by=block.created_by,
+        status=block.status,
+        deleted_at=block.deleted_at,
+        deleted_by=block.deleted_by,
+        last_event_at=block.deleted_at or block.created_at,
         lines=lines,
     )
 

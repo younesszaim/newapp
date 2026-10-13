@@ -120,6 +120,21 @@ interne déjà fiable, mais elle ne remplace pas cette validation d'entrée.
 - un validateur garantit qu'un bloc supprimé possède son audit et ne conserve
   aucune ligne.
 
+## 12. Dataclasses pour les résultats PostgreSQL
+
+- `AdjustmentTradeRecord` représente une ligne SQL active ;
+- `RegistryBlockRecord` représente un bloc SQL et ses lignes ;
+- `RegistryBlockLockRecord` contient uniquement les données nécessaires à une
+  suppression verrouillée ;
+- les objets utilisent `frozen=True` et `slots=True` pour être immuables et
+  légers ;
+- le repository transforme les résultats `RealDictCursor` en dataclasses ;
+- le service transforme ensuite ces objets internes en modèles Pydantic HTTP.
+
+La séparation est volontaire : les dataclasses représentent des données déjà
+issues de PostgreSQL, tandis que Pydantic valide les données externes et le
+contrat JSON.
+
 ## Préparer la base
 
 Exécuter [create_adjustment_registry.sql](../sql/create_adjustment_registry.sql)

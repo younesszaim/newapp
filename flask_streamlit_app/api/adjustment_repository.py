@@ -8,6 +8,12 @@ from uuid import UUID
 
 from psycopg2.extensions import connection as PostgreSQLConnection
 
+from api.adjustment_records import (
+    AdjustmentTradeRecord,
+    RegistryBlockLockRecord,
+    RegistryBlockRecord,
+)
+
 
 def trade_no_exists(connection: PostgreSQLConnection, trade_no: int) -> bool:
     with connection.cursor() as cursor:
@@ -80,7 +86,7 @@ def insert_registry_block(
         )
 
 
-def list_registry_blocks(connection: PostgreSQLConnection) -> list[dict[str, Any]]:
+def list_registry_blocks(connection: PostgreSQLConnection) -> list[RegistryBlockRecord]:
     """Retourne les blocs et relit leurs lignes actives dans completude_table."""
 
     with connection.cursor() as cursor:
@@ -106,21 +112,21 @@ def list_registry_blocks(connection: PostgreSQLConnection) -> list[dict[str, Any
                    WHERE bi_id = ANY(%s)""",
                 (active_bi_ids,),
             )
-            lines_by_bi_id = {row["bi_id"]: dict(row) for row in cursor.fetchall()}
+            lines_by_bi_id = {
+                row["bi_id"]: _to_trade_record(row)
+                for row in cursor.fetchall()
+            }
 
-    for block in blocks:
-        block["lines"] = [
-            lines_by_bi_id[bi_id]
-            for bi_id in block.pop("bi_ids")
-            if bi_id in lines_by_bi_id
-        ]
-    return blocks
+    return [
+        _to_registry_block_record(block, lines_by_bi_id)
+        for block in blocks
+    ]
 
 
 def get_registry_block_for_update(
     connection: PostgreSQLConnection,
     adjustment_id: UUID,
-) -> dict[str, Any] | None:
+) -> RegistryBlockLockRecord | None:
     """Verrouille un bloc pendant sa suppression."""
 
     with connection.cursor() as cursor:
@@ -132,7 +138,13 @@ def get_registry_block_for_update(
             (str(adjustment_id),),
         )
         row = cursor.fetchone()
-        return dict(row) if row else None
+        if row is None:
+            return None
+        return RegistryBlockLockRecord(
+            adjustment_id=row["adjustment_id"],
+            bi_ids=tuple(row["bi_ids"]),
+            status=row["status"],
+        )
 
 
 def delete_adjustment_trades(
@@ -164,3 +176,42 @@ def mark_registry_block_deleted(
                WHERE adjustment_id = %s""",
             (deleted_by, str(adjustment_id)),
         )
+
+
+def _to_trade_record(row: Mapping[str, Any]) -> AdjustmentTradeRecord:
+    """Transforme un résultat completude_table en objet interne immuable."""
+
+    return AdjustmentTradeRecord(
+        bi_id=row["bi_id"],
+        trade_no=row["tradeno"],
+        lcr_reglementaire=row["ldp_impact_lcr_reglementaire"],
+        lcr_gestion=row["ldp_impact_lcr_gestion"],
+        inflow=row["impact_lcr_inflow"],
+        outflow=row["impact_lcr_outflow"],
+        asset=row["impact_lcr_asset"],
+        asset_cash=row["impact_lcr_asset_cash"],
+    )
+
+
+def _to_registry_block_record(
+    row: Mapping[str, Any],
+    lines_by_bi_id: Mapping[str, AdjustmentTradeRecord],
+) -> RegistryBlockRecord:
+    """Assemble un en-tête du registre et ses lignes dans leur ordre d'origine."""
+
+    lines = tuple(
+        lines_by_bi_id[bi_id]
+        for bi_id in row["bi_ids"]
+        if bi_id in lines_by_bi_id
+    )
+    return RegistryBlockRecord(
+        adjustment_id=row["adjustment_id"],
+        asofdate=row["asofdate"],
+        version=row["asofdateflow_version"],
+        created_at=row["created_at"],
+        created_by=row["created_by"],
+        status=row["status"],
+        deleted_at=row["deleted_at"],
+        deleted_by=row["deleted_by"],
+        lines=lines,
+    )

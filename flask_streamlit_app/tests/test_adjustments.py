@@ -20,6 +20,11 @@ from api.adjustment_service import (
     get_adjustment_registry,
 )
 from api.app import create_app
+from api.adjustment_records import (
+    AdjustmentTradeRecord,
+    RegistryBlockLockRecord,
+    RegistryBlockRecord,
+)
 from api.errors import AdjustmentConflictError, AdjustmentNotFoundError
 
 
@@ -139,26 +144,26 @@ class AdjustmentTest(TestCase):
     @patch("api.adjustment_service.list_registry_blocks")
     def test_registry_serializes_active_lines(self, list_blocks: MagicMock) -> None:
         adjustment_id = UUID("a2432f6a-2142-41de-a34b-6ec75625a346")
-        list_blocks.return_value = [{
-            "adjustment_id": adjustment_id,
-            "asofdate": date(2026, 10, 5),
-            "asofdateflow_version": datetime(2026, 10, 6, 15, 30),
-            "created_at": datetime(2026, 10, 8, 9, 0),
-            "created_by": "local_user",
-            "status": "ACTIVE",
-            "deleted_at": None,
-            "deleted_by": None,
-            "lines": [{
-                "bi_id": "bi-id",
-                "tradeno": 123,
-                "ldp_impact_lcr_reglementaire": Decimal("100"),
-                "ldp_impact_lcr_gestion": Decimal("200"),
-                "impact_lcr_inflow": Decimal("0"),
-                "impact_lcr_outflow": Decimal("0"),
-                "impact_lcr_asset": Decimal("0"),
-                "impact_lcr_asset_cash": Decimal("0"),
-            }],
-        }]
+        list_blocks.return_value = [RegistryBlockRecord(
+            adjustment_id=adjustment_id,
+            asofdate=date(2026, 10, 5),
+            version=datetime(2026, 10, 6, 15, 30),
+            created_at=datetime(2026, 10, 8, 9, 0),
+            created_by="local_user",
+            status="ACTIVE",
+            deleted_at=None,
+            deleted_by=None,
+            lines=(AdjustmentTradeRecord(
+                bi_id="bi-id",
+                trade_no=123,
+                lcr_reglementaire=Decimal("100"),
+                lcr_gestion=Decimal("200"),
+                inflow=Decimal("0"),
+                outflow=Decimal("0"),
+                asset=Decimal("0"),
+                asset_cash=Decimal("0"),
+            ),),
+        )]
 
         result = get_adjustment_registry(MagicMock())
 
@@ -182,9 +187,11 @@ class AdjustmentTest(TestCase):
     ) -> None:
         adjustment_id = UUID("a2432f6a-2142-41de-a34b-6ec75625a346")
         connection = MagicMock()
-        get_block.return_value = {
-            "status": "ACTIVE", "bi_ids": ["bi-1", "bi-2"]
-        }
+        get_block.return_value = RegistryBlockLockRecord(
+            adjustment_id=adjustment_id,
+            status="ACTIVE",
+            bi_ids=("bi-1", "bi-2"),
+        )
 
         delete_adjustment_block(connection, adjustment_id)
 
@@ -200,7 +207,11 @@ class AdjustmentTest(TestCase):
     def test_delete_rejects_already_deleted_adjustment(
         self, get_block: MagicMock
     ) -> None:
-        get_block.return_value = {"status": "DELETED", "bi_ids": []}
+        get_block.return_value = RegistryBlockLockRecord(
+            adjustment_id=UUID(int=0),
+            status="DELETED",
+            bi_ids=(),
+        )
 
         with self.assertRaisesRegex(AdjustmentConflictError, "déjà supprimé"):
             delete_adjustment_block(MagicMock(), UUID(int=0))

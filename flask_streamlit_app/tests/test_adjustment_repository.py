@@ -1,6 +1,7 @@
 """Exemples unitaires de chaque requête du repository des ajustements."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 from unittest import TestCase
 
@@ -14,6 +15,7 @@ from api.adjustment_repository import (
     trade_no_exists,
 )
 from api.config import ADJUSTMENT_DEFAULTS
+from api.adjustment_records import RegistryBlockLockRecord, RegistryBlockRecord
 from tests.fakes import FakeConnection, FakeCursor
 
 
@@ -68,44 +70,63 @@ class AdjustmentRepositoryTest(TestCase):
         self.assertEqual(cursor.params[1], ["bi-1", "bi-2"])
 
     def test_list_registry_blocks_attaches_trades_by_bi_id(self) -> None:
+        adjustment_id = UUID("a2432f6a-2142-41de-a34b-6ec75625a346")
         blocks_cursor = FakeCursor([{
-            "adjustment_id": "adjustment-1",
+            "adjustment_id": adjustment_id,
+            "asofdate": date(2026, 10, 5),
+            "asofdateflow_version": datetime(2026, 10, 6, 15, 30),
+            "created_at": datetime(2026, 10, 8, 9, 0),
+            "created_by": "local_user",
             "bi_ids": ["bi-2", "bi-1"],
             "status": "ACTIVE",
+            "deleted_at": None,
+            "deleted_by": None,
         }])
         trades_cursor = FakeCursor([
-            {"bi_id": "bi-1", "tradeno": 1},
-            {"bi_id": "bi-2", "tradeno": 2},
+            self._trade_row("bi-1", 1),
+            self._trade_row("bi-2", 2),
         ])
 
         result = list_registry_blocks(
             FakeConnection(blocks_cursor, trades_cursor)
         )
 
-        self.assertEqual(
-            [line["bi_id"] for line in result[0]["lines"]],
-            ["bi-2", "bi-1"],
-        )
+        self.assertIsInstance(result[0], RegistryBlockRecord)
+        self.assertEqual([line.bi_id for line in result[0].lines], ["bi-2", "bi-1"])
         self.assertEqual(trades_cursor.params, (["bi-2", "bi-1"],))
 
     def test_list_registry_blocks_skips_trade_query_when_all_are_deleted(self) -> None:
         blocks_cursor = FakeCursor([{
-            "adjustment_id": "adjustment-1", "bi_ids": [], "status": "DELETED"
+            "adjustment_id": UUID("a2432f6a-2142-41de-a34b-6ec75625a346"),
+            "asofdate": date(2026, 10, 5),
+            "asofdateflow_version": datetime(2026, 10, 6, 15, 30),
+            "created_at": datetime(2026, 10, 8, 9, 0),
+            "created_by": "local_user",
+            "bi_ids": [],
+            "status": "DELETED",
+            "deleted_at": datetime(2026, 10, 9, 10, 0),
+            "deleted_by": "local_user",
         }])
 
         result = list_registry_blocks(FakeConnection(blocks_cursor))
 
-        self.assertEqual(result[0]["lines"], [])
+        self.assertEqual(result[0].lines, ())
 
     def test_get_registry_block_for_update_returns_first_row(self) -> None:
         adjustment_id = UUID("a2432f6a-2142-41de-a34b-6ec75625a346")
-        cursor = FakeCursor([{"status": "ACTIVE", "bi_ids": ["bi-1"]}])
+        cursor = FakeCursor([{
+            "adjustment_id": adjustment_id,
+            "status": "ACTIVE",
+            "bi_ids": ["bi-1"],
+        }])
 
         result = get_registry_block_for_update(
             FakeConnection(cursor), adjustment_id
         )
 
-        self.assertEqual(result["status"], "ACTIVE")
+        self.assertIsInstance(result, RegistryBlockLockRecord)
+        self.assertEqual(result.status, "ACTIVE")
+        self.assertEqual(result.bi_ids, ("bi-1",))
         self.assertIn("FOR UPDATE", cursor.query)
         self.assertEqual(cursor.params, (str(adjustment_id),))
 
@@ -130,3 +151,16 @@ class AdjustmentRepositoryTest(TestCase):
         self.assertIn("status = 'DELETED'", cursor.query)
         self.assertIn("bi_ids = ARRAY[]", cursor.query)
         self.assertEqual(cursor.params, ("local_user", str(adjustment_id)))
+
+    @staticmethod
+    def _trade_row(bi_id: str, trade_no: int) -> dict:
+        return {
+            "bi_id": bi_id,
+            "tradeno": trade_no,
+            "ldp_impact_lcr_reglementaire": Decimal("100"),
+            "ldp_impact_lcr_gestion": Decimal("200"),
+            "impact_lcr_inflow": Decimal("0"),
+            "impact_lcr_outflow": Decimal("0"),
+            "impact_lcr_asset": Decimal("0"),
+            "impact_lcr_asset_cash": Decimal("0"),
+        }
