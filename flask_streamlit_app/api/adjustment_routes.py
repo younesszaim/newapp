@@ -1,5 +1,6 @@
 """Routes Flask de création des ajustements."""
 
+from datetime import date
 from uuid import UUID
 
 from flask import Blueprint, jsonify, request
@@ -10,10 +11,44 @@ from api.adjustment_service import (
     create_adjustment_block,
     delete_adjustment_block,
     get_adjustment_registry,
+    get_latest_active_adjustment_before,
 )
 from api.database import database_connection
 
 adjustment_blueprint = Blueprint("adjustments", __name__, url_prefix="/api")
+
+
+@adjustment_blueprint.get("/asofdates/<asofdate>/latest-active-adjustment")
+def latest_active_adjustment(asofdate: str):
+    """Retourne le dernier ajustement actif avant une date.
+    ---
+    tags: [Ajustements]
+    parameters:
+      - name: asofdate
+        in: path
+        required: true
+        type: string
+        format: date
+        example: '2026-10-10'
+    responses:
+      200:
+        description: Bloc actif le plus récent, ou null si aucun bloc antérieur.
+      400:
+        description: Date invalide (format attendu YYYY-MM-DD).
+      500:
+        description: Base PostgreSQL indisponible.
+    """
+
+    try:
+        selected_asofdate = date.fromisoformat(asofdate)
+    except ValueError:
+        return jsonify(error="L'asofdate doit respecter le format YYYY-MM-DD."), 400
+
+    with database_connection() as connection:
+        block = get_latest_active_adjustment_before(connection, selected_asofdate)
+    if block is None:
+        return jsonify(None), 200
+    return jsonify(block.model_dump(mode="json", by_alias=True)), 200
 
 
 @adjustment_blueprint.get("/adjustments")

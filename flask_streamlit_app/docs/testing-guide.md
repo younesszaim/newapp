@@ -49,11 +49,11 @@ rend les exemples plus lisibles qu'un mock générique.
 | `api.lcr_repository` | `get_lcr_summary_rows` et paramètres SQL | `tests/test_lcr_repository.py` |
 | `api.lcr_service` | `build_lcr_summary` et calcul des totaux | `tests/test_lcr.py` |
 | `api.lcr_routes` | succès et paramètres manquants | `tests/test_lcr.py` |
-| `api.adjustment_repository` | toutes les lectures, insertions, mises à jour et suppressions | `tests/test_adjustment_repository.py` |
+| `api.adjustment_repository` | registre, dernier bloc actif, insertions, mises à jour et suppressions | `tests/test_adjustment_repository.py` |
 | `api.adjustment_records` | dataclasses immuables produites par les requêtes SQL | `tests/test_adjustment_repository.py` |
 | `api.adjustment_models` | requête, lignes et blocs du registre, `Decimal`, alias et cohérence des statuts | `tests/test_adjustments.py` |
-| `api.adjustment_service` | TradeNo, création, registre et suppression | `tests/test_adjustments.py` |
-| `api.adjustment_routes` | GET, POST, DELETE et entrées invalides | `tests/test_adjustments.py` |
+| `api.adjustment_service` | TradeNo, création, registre, dernier bloc actif et suppression | `tests/test_adjustments.py` |
+| `api.adjustment_routes` | GET, POST, DELETE, recherche antérieure et entrées invalides | `tests/test_adjustments.py` |
 | `streamlit_app` | HTTP, cache, formatage, pages, grille, registre et navigation | `tests/test_streamlit_app.py` |
 
 ## Exécuter un seul fichier

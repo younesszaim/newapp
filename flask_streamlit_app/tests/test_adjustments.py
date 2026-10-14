@@ -18,6 +18,7 @@ from api.adjustment_service import (
     create_adjustment_block,
     delete_adjustment_block,
     get_adjustment_registry,
+    get_latest_active_adjustment_before,
 )
 from api.app import create_app
 from api.adjustment_records import (
@@ -176,6 +177,34 @@ class AdjustmentTest(TestCase):
         json_result = result[0].model_dump(mode="json", by_alias=True)
         self.assertEqual(json_result["lines"][0]["ldpImpactLcrReglementaire"], 100.0)
 
+    @patch("api.adjustment_service.get_latest_active_registry_block_before")
+    def test_latest_active_service_serializes_the_block(
+        self,
+        get_latest: MagicMock,
+    ) -> None:
+        get_latest.return_value = self._active_block_record()
+
+        result = get_latest_active_adjustment_before(
+            MagicMock(), date(2026, 10, 10)
+        )
+
+        self.assertIsInstance(result, AdjustmentRegistryBlockResponse)
+        self.assertEqual(result.lines[0].trade_no, 123)
+
+    @patch(
+        "api.adjustment_service.get_latest_active_registry_block_before",
+        return_value=None,
+    )
+    def test_latest_active_service_returns_none_when_unavailable(
+        self,
+        _get_latest: MagicMock,
+    ) -> None:
+        result = get_latest_active_adjustment_before(
+            MagicMock(), date(2026, 10, 10)
+        )
+
+        self.assertIsNone(result)
+
     @patch("api.adjustment_service.mark_registry_block_deleted")
     @patch("api.adjustment_service.delete_adjustment_trades", return_value=2)
     @patch("api.adjustment_service.get_registry_block_for_update")
@@ -270,6 +299,63 @@ class AdjustmentTest(TestCase):
             "a2432f6a-2142-41de-a34b-6ec75625a346",
         )
 
+    @patch("api.adjustment_routes.get_latest_active_adjustment_before")
+    @patch("api.adjustment_routes.database_connection")
+    def test_latest_active_route_returns_the_block(
+        self,
+        database_connection: MagicMock,
+        get_latest: MagicMock,
+    ) -> None:
+        database_connection.return_value.__enter__.return_value = MagicMock()
+        get_latest.return_value = AdjustmentRegistryBlockResponse(
+            adjustment_id=UUID("a2432f6a-2142-41de-a34b-6ec75625a346"),
+            asofdate=date(2026, 10, 5),
+            version=datetime(2026, 10, 6, 15, 30),
+            created_at=datetime(2026, 10, 8, 9, 0),
+            created_by="local_user",
+            status="ACTIVE",
+            last_event_at=datetime(2026, 10, 8, 9, 0),
+            lines=[],
+        )
+
+        response = create_app().test_client().get(
+            "/api/asofdates/2026-10-10/latest-active-adjustment"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["asofdate"], "2026-10-05")
+        get_latest.assert_called_once_with(
+            database_connection.return_value.__enter__.return_value,
+            date(2026, 10, 10),
+        )
+
+    @patch(
+        "api.adjustment_routes.get_latest_active_adjustment_before",
+        return_value=None,
+    )
+    @patch("api.adjustment_routes.database_connection")
+    def test_latest_active_route_returns_json_null_when_unavailable(
+        self,
+        database_connection: MagicMock,
+        _get_latest: MagicMock,
+    ) -> None:
+        database_connection.return_value.__enter__.return_value = MagicMock()
+
+        response = create_app().test_client().get(
+            "/api/asofdates/2026-10-01/latest-active-adjustment"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json)
+
+    def test_latest_active_route_rejects_invalid_date(self) -> None:
+        response = create_app().test_client().get(
+            "/api/asofdates/not-a-date/latest-active-adjustment"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("YYYY-MM-DD", response.json["error"])
+
     def test_registry_model_rejects_unknown_status(self) -> None:
         with self.assertRaises(ValidationError):
             AdjustmentRegistryBlockResponse(
@@ -300,3 +386,26 @@ class AdjustmentTest(TestCase):
         response = create_app().test_client().delete("/api/adjustments/not-an-uuid")
 
         self.assertEqual(response.status_code, 400)
+
+    @staticmethod
+    def _active_block_record() -> RegistryBlockRecord:
+        return RegistryBlockRecord(
+            adjustment_id=UUID("a2432f6a-2142-41de-a34b-6ec75625a346"),
+            asofdate=date(2026, 10, 5),
+            version=datetime(2026, 10, 6, 15, 30),
+            created_at=datetime(2026, 10, 8, 9, 0),
+            created_by="local_user",
+            status="ACTIVE",
+            deleted_at=None,
+            deleted_by=None,
+            lines=(AdjustmentTradeRecord(
+                bi_id="bi-id",
+                trade_no=123,
+                lcr_reglementaire=Decimal("100"),
+                lcr_gestion=Decimal("200"),
+                inflow=Decimal("0"),
+                outflow=Decimal("0"),
+                asset=Decimal("0"),
+                asset_cash=Decimal("0"),
+            ),),
+        )

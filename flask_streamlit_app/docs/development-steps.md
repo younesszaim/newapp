@@ -135,6 +135,16 @@ La séparation est volontaire : les dataclasses représentent des données déj�
 issues de PostgreSQL, tandis que Pydantic valide les données externes et le
 contrat JSON.
 
+## 13. Dernier ajustement actif antérieur
+
+- ajout de `GET /api/asofdates/{asofdate}/latest-active-adjustment` ;
+- recherche uniquement des blocs `ACTIVE` avec `asofdate < date sélectionnée` ;
+- tri par `asofdate DESC`, puis `created_at DESC`, avec un seul résultat ;
+- relecture des lignes actives dans `completude_table` à partir des `bi_id` ;
+- réponse `200 OK` avec le bloc Pydantic existant, ou `null` sans résultat ;
+- mutualisation de la requête qui charge les trades par `bi_id` ;
+- tests d'exemple pour le repository, le service et la route Flask.
+
 ## Préparer la base
 
 Exécuter [create_adjustment_registry.sql](../sql/create_adjustment_registry.sql)

@@ -23,6 +23,7 @@ python -m api.app
 | `GET` | `/api/health` | Vérifier que Flask répond |
 | `GET` | `/api/asofdates` | Lister les dates d'arrêté |
 | `GET` | `/api/asofdates/{asofdate}/versions` | Lister les versions d'une date |
+| `GET` | `/api/asofdates/{asofdate}/latest-active-adjustment` | Trouver le dernier ajustement actif antérieur |
 | `GET` | `/api/lcr-summary` | Agréger la situation LCR |
 | `GET` | `/api/adjustments` | Consulter le registre |
 | `POST` | `/api/adjustments` | Créer un bloc d'ajustement |
@@ -167,6 +168,48 @@ Réponse `200 OK` :
 ```
 
 Réponse `400 Bad Request` si un paramètre manque ou n'est pas une valeur ISO.
+
+---
+
+## GET `/api/asofdates/{asofdate}/latest-active-adjustment`
+
+Retourne le bloc d'ajustement `ACTIVE` dont l'`asofdate` est la plus récente
+parmi les dates strictement antérieures à la date sélectionnée. Si plusieurs
+blocs existent pour cette date, le dernier bloc créé est retenu. Ses lignes
+sont relues depuis `public.completude_table` grâce aux `bi_id`.
+
+```bash
+curl http://127.0.0.1:5000/api/asofdates/2026-10-10/latest-active-adjustment
+```
+
+Réponse `200 OK` abrégée :
+
+```json
+{
+  "adjustmentId": "a2432f6a-2142-41de-a34b-6ec75625a346",
+  "asofdate": "2026-10-05",
+  "asofdateflowVersion": "2026-10-06T15:30:00",
+  "status": "ACTIVE",
+  "lines": [
+    {
+      "biId": "824a1434-8a25-4588-a91c-406ea02b4aef",
+      "tradeNo": 123456789,
+      "ldpImpactLcrReglementaire": 5000000.0,
+      "ldpImpactLcrGestion": 250000.0
+    }
+  ]
+}
+```
+
+Si aucun ajustement actif et antérieur n'existe, la route retourne toujours
+`200 OK`, avec le JSON suivant :
+
+```json
+null
+```
+
+Une date identique à la date sélectionnée n'est jamais retenue, car la règle
+utilise volontairement une comparaison stricte `<`.
 
 ---
 

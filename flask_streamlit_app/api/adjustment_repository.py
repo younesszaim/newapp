@@ -99,28 +99,38 @@ def list_registry_blocks(connection: PostgreSQLConnection) -> list[RegistryBlock
         blocks = [dict(row) for row in cursor.fetchall()]
 
     active_bi_ids = [bi_id for block in blocks for bi_id in block["bi_ids"]]
-    lines_by_bi_id = {}
-    if active_bi_ids:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """SELECT bi_id, tradeno,
-                          ldp_impact_lcr_reglementaire,
-                          ldp_impact_lcr_gestion,
-                          impact_lcr_inflow, impact_lcr_outflow,
-                          impact_lcr_asset, impact_lcr_asset_cash
-                   FROM public.completude_table
-                   WHERE bi_id = ANY(%s)""",
-                (active_bi_ids,),
-            )
-            lines_by_bi_id = {
-                row["bi_id"]: _to_trade_record(row)
-                for row in cursor.fetchall()
-            }
+    lines_by_bi_id = _load_trades_by_bi_ids(connection, active_bi_ids)
 
     return [
         _to_registry_block_record(block, lines_by_bi_id)
         for block in blocks
     ]
+
+
+def get_latest_active_registry_block_before(
+    connection: PostgreSQLConnection,
+    selected_asofdate: date,
+) -> RegistryBlockRecord | None:
+    """Retourne le dernier bloc actif strictement antérieur à la date donnée."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """SELECT adjustment_id, asofdate, asofdateflow_version, created_at,
+                      created_by, status, deleted_at, deleted_by, bi_ids
+               FROM public.adjustment_registry
+               WHERE status = 'ACTIVE' AND asofdate < %s
+               ORDER BY asofdate DESC, created_at DESC
+               LIMIT 1""",
+            (selected_asofdate,),
+        )
+        row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    block = dict(row)
+    lines_by_bi_id = _load_trades_by_bi_ids(connection, block["bi_ids"])
+    return _to_registry_block_record(block, lines_by_bi_id)
 
 
 def get_registry_block_for_update(
@@ -176,6 +186,32 @@ def mark_registry_block_deleted(
                WHERE adjustment_id = %s""",
             (deleted_by, str(adjustment_id)),
         )
+
+
+def _load_trades_by_bi_ids(
+    connection: PostgreSQLConnection,
+    bi_ids: list[str],
+) -> dict[str, AdjustmentTradeRecord]:
+    """Charge les deals fictifs demandés, indexés par leur identifiant BI."""
+
+    if not bi_ids:
+        return {}
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """SELECT bi_id, tradeno,
+                      ldp_impact_lcr_reglementaire,
+                      ldp_impact_lcr_gestion,
+                      impact_lcr_inflow, impact_lcr_outflow,
+                      impact_lcr_asset, impact_lcr_asset_cash
+               FROM public.completude_table
+               WHERE bi_id = ANY(%s)""",
+            (bi_ids,),
+        )
+        return {
+            row["bi_id"]: _to_trade_record(row)
+            for row in cursor.fetchall()
+        }
 
 
 def _to_trade_record(row: Mapping[str, Any]) -> AdjustmentTradeRecord:

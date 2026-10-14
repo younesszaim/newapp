@@ -7,6 +7,7 @@ from unittest import TestCase
 
 from api.adjustment_repository import (
     delete_adjustment_trades,
+    get_latest_active_registry_block_before,
     get_registry_block_for_update,
     insert_adjustment_trade,
     insert_registry_block,
@@ -111,6 +112,41 @@ class AdjustmentRepositoryTest(TestCase):
         result = list_registry_blocks(FakeConnection(blocks_cursor))
 
         self.assertEqual(result[0].lines, ())
+
+    def test_latest_active_block_is_loaded_with_its_trades(self) -> None:
+        adjustment_id = UUID("a2432f6a-2142-41de-a34b-6ec75625a346")
+        blocks_cursor = FakeCursor([{
+            "adjustment_id": adjustment_id,
+            "asofdate": date(2026, 10, 5),
+            "asofdateflow_version": datetime(2026, 10, 6, 15, 30),
+            "created_at": datetime(2026, 10, 8, 9, 0),
+            "created_by": "local_user",
+            "bi_ids": ["bi-1"],
+            "status": "ACTIVE",
+            "deleted_at": None,
+            "deleted_by": None,
+        }])
+        trades_cursor = FakeCursor([self._trade_row("bi-1", 123)])
+
+        result = get_latest_active_registry_block_before(
+            FakeConnection(blocks_cursor, trades_cursor),
+            date(2026, 10, 10),
+        )
+
+        self.assertEqual(result.adjustment_id, adjustment_id)
+        self.assertEqual(result.lines[0].trade_no, 123)
+        self.assertIn("status = 'ACTIVE'", blocks_cursor.query)
+        self.assertIn("asofdate < %s", blocks_cursor.query)
+        self.assertIn("ORDER BY asofdate DESC, created_at DESC", blocks_cursor.query)
+        self.assertEqual(blocks_cursor.params, (date(2026, 10, 10),))
+
+    def test_latest_active_block_returns_none_when_no_block_exists(self) -> None:
+        result = get_latest_active_registry_block_before(
+            FakeConnection(FakeCursor()),
+            date(2026, 10, 10),
+        )
+
+        self.assertIsNone(result)
 
     def test_get_registry_block_for_update_returns_first_row(self) -> None:
         adjustment_id = UUID("a2432f6a-2142-41de-a34b-6ec75625a346")

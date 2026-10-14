@@ -1,5 +1,6 @@
 """Validation et création transactionnelle d'un bloc d'ajustement."""
 
+from datetime import date
 import secrets
 from uuid import UUID
 from uuid import uuid4
@@ -11,6 +12,7 @@ from api.adjustment_repository import (
     insert_registry_block,
     list_registry_blocks,
     get_registry_block_for_update,
+    get_latest_active_registry_block_before,
     delete_adjustment_trades,
     mark_registry_block_deleted,
     trade_no_exists,
@@ -72,6 +74,16 @@ def get_adjustment_registry(
     """Prépare les blocs PostgreSQL pour leur sérialisation JSON."""
 
     return [_serialize_block(block) for block in list_registry_blocks(connection)]
+
+
+def get_latest_active_adjustment_before(
+    connection: PostgreSQLConnection,
+    selected_asofdate: date,
+) -> AdjustmentRegistryBlockResponse | None:
+    """Prépare le bloc actif le plus récent avant la date sélectionnée."""
+
+    block = get_latest_active_registry_block_before(connection, selected_asofdate)
+    return _serialize_block(block) if block is not None else None
 
 
 def delete_adjustment_block(
